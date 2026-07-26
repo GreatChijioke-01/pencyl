@@ -47,18 +47,7 @@ export default function Editor() {
 
     const [isApplying, setIsApplying] = useState(false);
 
-    // If active file is terminal, render terminal
-    if (activeFile?.kind === "terminal") {
-      return (
-        <div className="editor-container" style={{height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column"}}>
-          <div style={{ flex: 1, position: "relative" }}>
-            <Terminal cwd={rootPath ?? activeFile.path} />
-          </div>
-        </div>
-      );
-    }
-
-    // If no active file, show empty state
+    // If no active file, show empty state (prioritized over terminal)
     if (!activeFile) {
       return (
         <div className="editor-container" style={{
@@ -69,6 +58,17 @@ export default function Editor() {
           color: "#666"
         }}>
           <h2>No file open</h2>
+        </div>
+      );
+    }
+
+    // If active file is terminal, render terminal
+    if (activeFile?.kind === "terminal") {
+      return (
+        <div className="editor-container" style={{height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column"}}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <Terminal cwd={rootPath ?? activeFile.path} />
+          </div>
         </div>
       );
     }

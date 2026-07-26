@@ -216,6 +216,211 @@
   color: var(--text-color);
 }
 
+/* Text Input */
+.preferences-text-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.preferences-text-input:focus {
+  border-color: var(--primary-color);
+}
+
+/* Textarea */
+.preferences-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.preferences-textarea:focus {
+  border-color: var(--primary-color);
+}
+
+/* Slider / Range */
+.preferences-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preferences-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.preferences-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: 2px solid var(--surface-color);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.preferences-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: 2px solid var(--surface-color);
+}
+
+.preferences-slider-value {
+  min-width: 36px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.preferences-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted-text-color);
+  padding: 0 2px;
+}
+
+/* Hotkeys Table */
+.preferences-hotkeys-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preferences-hotkeys-table-header {
+  display: grid;
+  grid-template-columns: 1fr 120px 140px;
+  gap: 0;
+  padding: 10px 16px;
+  background-color: var(--panel-color);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-text-color);
+}
+
+.preferences-hotkeys-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 140px;
+  gap: 0;
+  padding: 12px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.preferences-hotkeys-row:last-child {
+  border-bottom: none;
+}
+
+.preferences-hotkeys-row:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.preferences-hotkeys-row.editing {
+  background-color: rgba(37, 99, 235, 0.08);
+}
+
+.preferences-hotkeys-col-action {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.preferences-hotkeys-col-category {
+  display: flex;
+  align-items: center;
+}
+
+.preferences-hotkeys-category-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: var(--button-bg);
+  color: var(--muted-text-color);
+  border: 1px solid var(--border-color);
+}
+
+.preferences-hotkeys-col-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.preferences-hotkeys-kbd {
+  display: inline-block;
+  padding: 4px 10px;
+  background-color: var(--panel-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--text-color);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  line-height: 1.4;
+}
+
+.preferences-hotkeys-listening {
+  font-size: 11px;
+  color: var(--primary-color);
+  font-style: italic;
+  opacity: 0.8;
+  letter-spacing: 0.3px;
+  animation: pulse-listening 1.2s ease-in-out infinite;
+}
+
+.preferences-hotkeys-listening-hint {
+  font-size: 10px;
+  color: var(--muted-text-color);
+  font-style: normal;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+@keyframes pulse-listening {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}
+
 /* Buttons */
 .preferences-button {
   padding: 8px 16px;
@@ -233,6 +438,18 @@
 .preferences-button:hover {
   background-color: var(--button-hover-bg);
   border-color: var(--primary-color);
+}
+
+/* Danger button */
+.preferences-button.preferences-button-danger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.preferences-button.preferences-button-danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: #dc2626;
+  color: #dc2626;
 }
 
 /* Theme Options Grid */

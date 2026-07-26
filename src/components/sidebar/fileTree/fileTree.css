@@ -14,12 +14,12 @@
 }
 
 .ft-row:hover {
-  background: rgba(59,130,246,0.04);
+  background: var(--hover-bg);
 }
 
 .ft-selected {
-  background: rgba(59, 130, 246, 0.14) !important;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22);
+  background: var(--selection-bg) !important;
+  box-shadow: inset 0 0 0 1px var(--selection-border);
 }
 
 .ft-icon {
@@ -92,7 +92,7 @@
 
 .ft-inline-input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.14);
+  box-shadow: 0 0 0 2px var(--focus-shadow);
 }
 
 .ft-children {

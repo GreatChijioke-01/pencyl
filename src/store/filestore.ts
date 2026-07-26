@@ -21,6 +21,7 @@ interface FileStore {
     markFileDirty: (fileId: string, isDirty: boolean) => void;
     markFileClean: (fileId: string) => void;
     saveAsFile: (fileId: string, path: string, name: string) => void;
+    reorderFiles: (fromIndex: number, toIndex: number) => void;
 }
 
 export const useFileStore = create<FileStore>((set) => ({
@@ -87,4 +88,12 @@ export const useFileStore = create<FileStore>((set) => ({
                 f.id === fileId ? { ...f, path, name, isDirty: false } : f
             ),
         })),
-}));    
+
+    reorderFiles: (fromIndex: number, toIndex: number) =>
+        set((state) => {
+            const newFiles = [...state.files];
+            const [movedFile] = newFiles.splice(fromIndex, 1);
+            newFiles.splice(toIndex, 0, movedFile);
+            return { files: newFiles };
+        }),
+}));

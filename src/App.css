@@ -26,6 +26,10 @@ html, body, #root {
   --button-bg: rgba(15, 23, 42, 0.06);
   --button-hover-bg: rgba(15, 23, 42, 0.1);
   --shadow-color: rgba(15, 23, 42, 0.08);
+  --selection-bg: rgba(37, 99, 235, 0.14);
+  --selection-border: rgba(37, 99, 235, 0.22);
+  --hover-bg: rgba(37, 99, 235, 0.04);
+  --focus-shadow: rgba(37, 99, 235, 0.14);
 }
 
 [data-theme="dark"] {
@@ -40,6 +44,10 @@ html, body, #root {
   --button-bg: rgba(255, 255, 255, 0.08);
   --button-hover-bg: rgba(255, 255, 255, 0.12);
   --shadow-color: rgba(0, 0, 0, 0.45);
+  --selection-bg: rgba(96, 165, 250, 0.14);
+  --selection-border: rgba(96, 165, 250, 0.22);
+  --hover-bg: rgba(96, 165, 250, 0.04);
+  --focus-shadow: rgba(96, 165, 250, 0.14);
 }
 
 [data-theme="ocean"] {
@@ -54,6 +62,10 @@ html, body, #root {
   --button-bg: rgba(56, 189, 248, 0.12);
   --button-hover-bg: rgba(56, 189, 248, 0.18);
   --shadow-color: rgba(3, 17, 32, 0.42);
+  --selection-bg: rgba(56, 189, 248, 0.14);
+  --selection-border: rgba(56, 189, 248, 0.22);
+  --hover-bg: rgba(56, 189, 248, 0.04);
+  --focus-shadow: rgba(56, 189, 248, 0.14);
 }
 
 [data-theme="dracula"] {
@@ -68,6 +80,10 @@ html, body, #root {
   --button-bg: rgba(189, 147, 249, 0.12);
   --button-hover-bg: rgba(189, 147, 249, 0.18);
   --shadow-color: rgba(15, 16, 22, 0.5);
+  --selection-bg: rgba(189, 147, 249, 0.14);
+  --selection-border: rgba(189, 147, 249, 0.22);
+  --hover-bg: rgba(189, 147, 249, 0.04);
+  --focus-shadow: rgba(189, 147, 249, 0.14);
 }
 
 [data-theme="light"] {
@@ -82,6 +98,10 @@ html, body, #root {
   --button-bg: rgba(15, 23, 42, 0.06);
   --button-hover-bg: rgba(15, 23, 42, 0.12);
   --shadow-color: rgba(15, 23, 42, 0.08);
+  --selection-bg: rgba(37, 99, 235, 0.14);
+  --selection-border: rgba(37, 99, 235, 0.22);
+  --hover-bg: rgba(37, 99, 235, 0.04);
+  --focus-shadow: rgba(37, 99, 235, 0.14);
 }
 
 [data-theme="sage"] {
@@ -96,6 +116,10 @@ html, body, #root {
   --button-bg: rgba(125, 196, 152, 0.12);
   --button-hover-bg: rgba(125, 196, 152, 0.18);
   --shadow-color: rgba(30, 46, 37, 0.42);
+  --selection-bg: rgba(125, 196, 152, 0.14);
+  --selection-border: rgba(125, 196, 152, 0.22);
+  --hover-bg: rgba(125, 196, 152, 0.04);
+  --focus-shadow: rgba(125, 196, 152, 0.14);
 }
 
 [data-theme="caffeine"] {
@@ -110,6 +134,10 @@ html, body, #root {
   --button-bg: rgba(196, 164, 132, 0.12);
   --button-hover-bg: rgba(196, 164, 132, 0.18);
   --shadow-color: rgba(42, 30, 24, 0.45);
+  --selection-bg: rgba(196, 164, 132, 0.14);
+  --selection-border: rgba(196, 164, 132, 0.22);
+  --hover-bg: rgba(196, 164, 132, 0.04);
+  --focus-shadow: rgba(196, 164, 132, 0.14);
 }
 
 /* App container (matches src/App.tsx) */

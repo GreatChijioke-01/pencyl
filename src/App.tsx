@@ -6,6 +6,7 @@ import Editor from "./components/editor/editor";
 import Preferences from "./components/preferences/Preferences";
 import { AIChat } from "./components/ai_chat/ai_chat";
 import Footer from "./components/footer/footer";
+import GitGraph from "./components/source_control/GitGraph";
 import { useThemeStore } from "./store/themeStore";
 import { useSystemThemeSync } from "./hooks/useSystemThemeSync";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -18,6 +19,8 @@ export default function App() {
 
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isSourceControlOpen, setIsSourceControlOpen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     try {
       const savedWidth = localStorage.getItem('pencyl.sidebarWidth');
@@ -39,6 +42,25 @@ export default function App() {
   // Initialize settings on app start
   useEffect(() => {
     initializeSettings();
+  }, []);
+
+  // Listen for sidebar toggle events from titlebar
+  useEffect(() => {
+    const toggleHandler = () => setSidebarVisible((prev) => !prev);
+    const showHandler = () => setSidebarVisible(true);
+    window.addEventListener("pencyl:toggle-sidebar", toggleHandler);
+    window.addEventListener("pencyl:show-sidebar", showHandler);
+    return () => {
+      window.removeEventListener("pencyl:toggle-sidebar", toggleHandler);
+      window.removeEventListener("pencyl:show-sidebar", showHandler);
+    };
+  }, []);
+
+  // Listen for source control toggle events from titlebar
+  useEffect(() => {
+    const handler = () => setIsSourceControlOpen((prev) => !prev);
+    window.addEventListener("pencyl:open-source-control", handler);
+    return () => window.removeEventListener("pencyl:open-source-control", handler);
   }, []);
 
   // Handle sidebar resize
@@ -107,28 +129,42 @@ export default function App() {
     setIsPreferencesOpen(false);
   };
 
+  const handleToggleTerminal = () => {
+    window.dispatchEvent(new CustomEvent("pencyl:open-terminal"));
+  };
+
+  const handleToggleSettings = () => {
+    setIsPreferencesOpen((prev) => !prev);
+  };
+
   useKeyboardShortcuts({
     onSave: handleSave,
     onToggleAgent: handleToggleAgent,
+    onToggleTerminal: handleToggleTerminal,
+    onToggleSettings: handleToggleSettings,
   });
 
   return (
     <div className="app-container">
       <TitleBar onOpenSettings={handleOpenPreferences} />
       <div className="main-content">
-        <div 
-          ref={sidebarRef} 
-          className="sidebar-container-wrapper" 
-          style={{ width: `${sidebarWidth}px` }}
-        >
-          <Sidebar />
+        {sidebarVisible && (
           <div 
-            className="sidebar-resize-handle" 
-            onMouseDown={startResizing}
-          />
-        </div>
+            ref={sidebarRef} 
+            className="sidebar-container-wrapper" 
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            <Sidebar />
+            <div 
+              className="sidebar-resize-handle" 
+              onMouseDown={startResizing}
+            />
+          </div>
+        )}
         {isPreferencesOpen ? (
           <Preferences onClose={handleClosePreferences} />
+        ) : isSourceControlOpen ? (
+          <GitGraph />
         ) : (
           <>
             <Editor />

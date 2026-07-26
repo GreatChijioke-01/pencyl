@@ -24,6 +24,7 @@ import {
 } from "../../services/aiAgentParser";
 import { chatCompletion, type ChatCompletionMessage } from "../../services/aiService";
 import { useAIStore, PROVIDER_MODEL_DEFAULTS, type AIProvider } from "../../store/ai_store";
+import { useSettingsStore } from "../../store/settingsStore";
 import { useDiffStore } from "../../store/diffStore";
 import { useCommandStore } from "../../store/commandStore";
 import { useFileStore } from "../../store/filestore";
@@ -121,6 +122,10 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
     requiresApiKey,
   } = useAIStore();
 
+  // Settings store - AI config
+  const aiTemperature = useSettingsStore((state) => state.aiTemperature);
+  const aiSystemInstructions = useSettingsStore((state) => state.aiSystemInstructions);
+
   // Preparing Assets for the AI model to use.
   const setPendingDiff = useDiffStore((state) => state.setPendingDiff);
   const clearAllPendingDiffs = useDiffStore((state) => state.clearAllPendingDiffs);
@@ -163,8 +168,8 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
   }, [activeFile, files, normalizedRoot]);
 
   const systemPrompt = useMemo(
-    () => buildAgentSystemPrompt(workspaceContext),
-    [workspaceContext]
+    () => buildAgentSystemPrompt(workspaceContext, aiSystemInstructions),
+    [workspaceContext, aiSystemInstructions]
   );
 
   const needsInitialSetup = requiresApiKey() && !apiKey;
@@ -207,6 +212,7 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
       anthropicModel,
       ollamaBaseUrl,
       ollamaModel,
+      temperature: aiTemperature,
     });
 
     for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {

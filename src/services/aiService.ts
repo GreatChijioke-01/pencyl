@@ -14,6 +14,7 @@ export type ChatCompletionOptions = {
   anthropicModel: string;
   ollamaBaseUrl: string;
   ollamaModel: string;
+  temperature?: number;
 };
 
 async function readError(response: Response): Promise<string> {
@@ -31,6 +32,7 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
     anthropicModel,
     ollamaBaseUrl,
     ollamaModel,
+    temperature = 0.2,
   } = options;
 
   switch (provider) {
@@ -39,19 +41,21 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
         "https://api.openai.com/v1/chat/completions",
         apiKey,
         openaiModel,
-        messages
+        messages,
+        temperature
       );
     case "groq":
       return callOpenAiCompatible(
         "https://api.groq.com/openai/v1/chat/completions",
         apiKey,
         groqModel,
-        messages
+        messages,
+        temperature
       );
     case "anthropic":
-      return callAnthropic(apiKey, anthropicModel, messages);
+      return callAnthropic(apiKey, anthropicModel, messages, temperature);
     case "ollama":
-      return callOllama(ollamaBaseUrl, ollamaModel, messages);
+      return callOllama(ollamaBaseUrl, ollamaModel, messages, temperature);
     default:
       throw new Error(`Unsupported provider: ${provider satisfies never}`);
   }
@@ -61,7 +65,8 @@ async function callOpenAiCompatible(
   endpoint: string,
   apiKey: string,
   model: string,
-  messages: ChatCompletionMessage[]
+  messages: ChatCompletionMessage[],
+  temperature: number
 ): Promise<string> {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -71,7 +76,7 @@ async function callOpenAiCompatible(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      temperature,
       messages,
     }),
   });
@@ -90,7 +95,8 @@ async function callOpenAiCompatible(
 async function callAnthropic(
   apiKey: string,
   model: string,
-  messages: ChatCompletionMessage[]
+  messages: ChatCompletionMessage[],
+  temperature: number
 ): Promise<string> {
   const systemMessage = messages.find((message) => message.role === "system");
   const conversation = messages.filter((message) => message.role !== "system");
@@ -105,6 +111,7 @@ async function callAnthropic(
     body: JSON.stringify({
       model,
       max_tokens: 4096,
+      temperature,
       system: systemMessage?.content ?? "",
       messages: conversation.map((message) => ({
         role: message.role === "assistant" ? "assistant" : "user",
@@ -127,7 +134,8 @@ async function callAnthropic(
 async function callOllama(
   baseUrl: string,
   model: string,
-  messages: ChatCompletionMessage[]
+  messages: ChatCompletionMessage[],
+  temperature: number
 ): Promise<string> {
   const endpoint = `${baseUrl.replace(/\/$/, "")}/api/chat`;
   const response = await fetch(endpoint, {
@@ -136,6 +144,9 @@ async function callOllama(
     body: JSON.stringify({
       model,
       stream: false,
+      options: {
+        temperature,
+      },
       messages: messages.map((message) => ({
         role: message.role,
         content: message.content,

@@ -13,7 +13,7 @@ export type WorkspaceContext = {
   openFiles: Array<{ path: string; isDirty: boolean }>;
 };
 
-export function buildAgentSystemPrompt(context: WorkspaceContext): string {
+export function buildAgentSystemPrompt(context: WorkspaceContext, customInstructions?: string): string {
   const lines = [
     "You are an agentic coding assistant embedded in the Pencyl desktop code editor.",
     "You can modify files and request one terminal command at a time.",
@@ -59,6 +59,12 @@ export function buildAgentSystemPrompt(context: WorkspaceContext): string {
     lines.push("```");
     lines.push(truncateContent(context.activeFileContent));
     lines.push("```");
+  }
+
+  if (customInstructions && customInstructions.trim().length > 0) {
+    lines.push("");
+    lines.push("CUSTOM INSTRUCTIONS FROM USER:");
+    lines.push(customInstructions.trim());
   }
 
   return lines.join("\n");
@@ -154,3 +160,4 @@ export async function persistAcceptedChange(path: string, content: string): Prom
 
   await invoke("write_ai_code", { path, content });
 }
+

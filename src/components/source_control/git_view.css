@@ -1,0 +1,271 @@
+.sc-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--panel-color);
+  overflow: hidden;
+}
+
+.sc-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sc-graph-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sc-graph-content {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-color);
+  white-space: pre-wrap;
+}
+
+.sc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+}
+
+.sc-header-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-text-color);
+}
+
+.sc-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sc-action-btn {
+  padding: 4px 8px;
+  background: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.sc-action-btn:hover {
+  background: var(--button-hover-bg);
+}
+
+.sc-action-btn.primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+  opacity: 0.9;
+}
+
+.sc-action-btn.primary:hover {
+  opacity: 1;
+}
+
+.sc-action-btn.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sc-files {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.sc-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-size: 12px;
+  color: var(--text-color);
+}
+
+.sc-file-item:hover {
+  background: var(--button-hover-bg);
+}
+
+.sc-file-status {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sc-file-status.M {
+  color: #e8c547;
+}
+
+.sc-file-status.A {
+  color: #4caf50;
+}
+
+.sc-file-status.D {
+  color: #f44336;
+}
+
+.sc-file-status.U {
+  color: #e8c547;
+}
+
+.sc-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.sc-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted-text-color);
+  font-size: 12px;
+}
+
+.sc-commit-area {
+  border-top: 1px solid var(--border-color);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-commit-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.sc-commit-input:focus {
+  border-color: var(--primary-color);
+}
+
+.sc-commit-input::placeholder {
+  color: var(--muted-text-color);
+  opacity: 0.7;
+}
+
+/* Tab bar */
+.sc-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--panel-color);
+}
+
+.sc-tab {
+  flex: 1;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-text-color);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sc-tab:hover {
+  color: var(--text-color);
+  background: var(--button-hover-bg);
+}
+
+.sc-tab.active {
+  color: var(--text-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.sc-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--primary-color);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Staged indicator badge */
+.sc-file-staged {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary-color);
+  letter-spacing: 0;
+}
+
+/* Commit area action buttons row */
+.sc-commit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sc-commit-actions .sc-action-btn {
+  flex: 1;
+  text-align: center;
+}
+
+.sc-message {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--muted-text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sc-message.error {
+  color: #f44336;
+}
+
+.sc-message.success {
+  color: #4caf50;
+}

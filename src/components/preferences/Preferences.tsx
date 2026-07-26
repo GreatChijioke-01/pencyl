@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useThemeStore, type ThemePreference, type ResolvedTheme } from "../../store/themeStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useAIStore } from "../../store/ai_store";
 import { Settings, Bot, Palette, Keyboard, X } from 'lucide-react';
 import "./Preferences.css";
 
@@ -9,6 +10,13 @@ type PreferencesTab = "general" | "ai-config" | "appearance" | "hotkeys";
 interface PreferencesProps {
   onClose: () => void;
 }
+
+const KEYBINDING_ACTIONS = [
+  { action: "Save", category: "General", defaultShortcut: "Ctrl+S" },
+  { action: "AI Agent", category: "AI", defaultShortcut: "Ctrl+I" },
+  { action: "Terminal", category: "Terminal", defaultShortcut: "Ctrl+`" },
+  { action: "Settings", category: "General", defaultShortcut: "Ctrl+," },
+];
 
 export default function Preferences({ onClose }: PreferencesProps) {
   const [activeTab, setActiveTab] = useState<PreferencesTab>("general");
@@ -20,6 +28,25 @@ export default function Preferences({ onClose }: PreferencesProps) {
   const setAutoSave = useSettingsStore((state) => state.setAutoSave);
   const setEnableTerminalGuardrails = useSettingsStore((state) => state.setEnableTerminalGuardrails);
   
+  // AI Config settings
+  const aiSystemInstructions = useSettingsStore((state) => state.aiSystemInstructions);
+  const aiTemperature = useSettingsStore((state) => state.aiTemperature);
+  const aiAutoIncludeContext = useSettingsStore((state) => state.aiAutoIncludeContext);
+  const aiAutoSaveBeforeExec = useSettingsStore((state) => state.aiAutoSaveBeforeExec);
+  const setAiSystemInstructions = useSettingsStore((state) => state.setAiSystemInstructions);
+  const setAiTemperature = useSettingsStore((state) => state.setAiTemperature);
+  const setAiAutoIncludeContext = useSettingsStore((state) => state.setAiAutoIncludeContext);
+  const setAiAutoSaveBeforeExec = useSettingsStore((state) => state.setAiAutoSaveBeforeExec);
+
+  // AI Provider store (for Ollama endpoint)
+  const ollamaBaseUrl = useAIStore((state) => state.ollamaBaseUrl);
+  const setOllamaBaseUrl = useAIStore((state) => state.setOllamaBaseUrl);
+
+  // Hotkeys settings
+  const hotkeyBindings = useSettingsStore((state) => state.hotkeyBindings);
+  const setHotkeyBinding = useSettingsStore((state) => state.setHotkeyBinding);
+  const resetHotkeyBindings = useSettingsStore((state) => state.resetHotkeyBindings);
+
   // Theme store
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
@@ -56,7 +83,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
 
   const handleSave = () => {
     setPreference(localPref);
-    // Settings are saved automatically via Zustand persist
+    // All other settings are persisted automatically via Zustand persist middleware
     onClose();
   };
 
@@ -66,6 +93,34 @@ export default function Preferences({ onClose }: PreferencesProps) {
     // This would connect to Tauri's auto-updater in a real implementation
     alert("Update check would be implemented with Tauri auto-updater");
   };
+
+  const [editingAction, setEditingAction] = useState<string | null>(null);
+
+  const handleKeydownCapture = (e: React.KeyboardEvent, action: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const mod = e.ctrlKey || e.metaKey ? "Ctrl" : "";
+    const key = e.key === "Control" || e.key === "Meta" || e.key === "Shift" || e.key === "Alt" ? "" : e.key;
+    
+    if (!mod || !key) return;
+
+    const shortcut = key === "`" ? `${mod}+\`` : `${mod}+${key.charAt(0).toUpperCase() + key.slice(1)}`;
+    setHotkeyBinding(action, shortcut);
+    setEditingAction(null);
+  };
+
+  const startEditing = (action: string, _currentShortcut: string) => {
+    setEditingAction(action);
+  };
+
+  const editingRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (editingAction && editingRef.current) {
+      editingRef.current.focus();
+    }
+  }, [editingAction]);
 
   return (
     <div className="preferences-container">
@@ -205,20 +260,164 @@ export default function Preferences({ onClose }: PreferencesProps) {
 
           {activeTab === "ai-config" && (
             <div className="preferences-section">
-              <div className="preferences-section-content">
-                <p className="preferences-placeholder">
-                  AI Configuration settings coming soon
+              <div className="preferences-section-header">
+                <h3>System Instructions</h3>
+                <p className="preferences-section-subtitle">
+                  Custom behavior rules appended to the AI system prompt on every request.
                 </p>
+              </div>
+              <div className="preferences-section-content">
+                <div className="preferences-setting">
+                  <textarea
+                    className="preferences-textarea"
+                    rows={4}
+                    placeholder='e.g. "Always use TypeScript strict types"'
+                    value={aiSystemInstructions}
+                    onChange={(e) => setAiSystemInstructions(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="preferences-section-header">
+                <h3>Temperature</h3>
+                <p className="preferences-section-subtitle">
+                  Controls randomness in AI responses. Lower values are more deterministic (default: 0.2).
+                </p>
+              </div>
+              <div className="preferences-section-content">
+                <div className="preferences-setting">
+                  <div className="preferences-slider-row">
+                    <input
+                      type="range"
+                      className="preferences-slider"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={aiTemperature}
+                      onChange={(e) => setAiTemperature(parseFloat(e.target.value))}
+                    />
+                    <span className="preferences-slider-value">{aiTemperature.toFixed(1)}</span>
+                  </div>
+                  <div className="preferences-slider-labels">
+                    <span>Precise (0.0)</span>
+                    <span>Creative (1.0)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="preferences-section-header">
+                <h3>Local Inference Endpoint</h3>
+                <p className="preferences-section-subtitle">
+                  Override base API URL when using a local model provider (e.g., Ollama).
+                </p>
+              </div>
+              <div className="preferences-section-content">
+                <div className="preferences-setting">
+                  <input
+                    type="text"
+                    className="preferences-text-input"
+                    placeholder="http://localhost:11434"
+                    value={ollamaBaseUrl}
+                    onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="preferences-section-header">
+                <h3>Context & Auto-Apply</h3>
+              </div>
+              <div className="preferences-section-content">
+                <div className="preferences-setting">
+                  <label className="preferences-checkbox">
+                    <input 
+                      type="checkbox" 
+                      checked={aiAutoIncludeContext} 
+                      onChange={(e) => setAiAutoIncludeContext(e.target.checked)}
+                    />
+                    <span className="preferences-checkbox-label">
+                      Auto-include active file context in prompt
+                    </span>
+                  </label>
+                  <p className="preferences-setting-description">
+                    When enabled, the active file's content is automatically injected into the AI system prompt.
+                  </p>
+                </div>
+                
+                <div className="preferences-setting">
+                  <label className="preferences-checkbox">
+                    <input 
+                      type="checkbox" 
+                      checked={aiAutoSaveBeforeExec} 
+                      onChange={(e) => setAiAutoSaveBeforeExec(e.target.checked)}
+                    />
+                    <span className="preferences-checkbox-label">
+                      Auto-save files before AI code execution
+                    </span>
+                  </label>
+                  <p className="preferences-setting-description">
+                    When enabled, all open files are saved before the AI executes terminal commands or applies changes.
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {activeTab === "hotkeys" && (
             <div className="preferences-section">
-              <div className="preferences-section-content">
-                <p className="preferences-placeholder">
-                  Keyboard shortcuts configuration coming soon
+              <div className="preferences-section-header">
+                <h3>Keyboard Shortcuts</h3>
+                <p className="preferences-section-subtitle">
+                  Click a shortcut to rebind it. Press the desired key combination to assign.
                 </p>
+              </div>
+              <div className="preferences-section-content">
+                <div className="preferences-hotkeys-table">
+                  <div className="preferences-hotkeys-table-header">
+                    <span className="preferences-hotkeys-col-action">Action / Command</span>
+                    <span className="preferences-hotkeys-col-category">Category</span>
+                    <span className="preferences-hotkeys-col-shortcut">Shortcut</span>
+                  </div>
+                  {KEYBINDING_ACTIONS.map((item) => {
+                    const currentShortcut = hotkeyBindings[item.action] || item.defaultShortcut;
+                    const isEditing = editingAction === item.action;
+                    
+                    return (
+                      <div
+                        key={item.action}
+                        ref={isEditing ? editingRef : null}
+                        className={`preferences-hotkeys-row${isEditing ? " editing" : ""}`}
+                        onClick={() => !isEditing && startEditing(item.action, currentShortcut)}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (isEditing) {
+                            handleKeydownCapture(e, item.action);
+                          }
+                        }}
+                      >
+                        <span className="preferences-hotkeys-col-action">{item.action}</span>
+                        <span className="preferences-hotkeys-col-category">
+                          <span className="preferences-hotkeys-category-badge">{item.category}</span>
+                        </span>
+                        <span className="preferences-hotkeys-col-shortcut">
+                          {isEditing ? (
+                            <span className="preferences-hotkeys-listening">Press Ctrl+<span className="preferences-hotkeys-listening-hint">key</span></span>
+                          ) : (
+                            <kbd className="preferences-hotkeys-kbd">{currentShortcut}</kbd>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="preferences-setting" style={{ marginTop: "16px" }}>
+                  <button
+                    className="preferences-button preferences-button-danger"
+                    onClick={resetHotkeyBindings}
+                  >
+                    Reset Keybindings to Default
+                  </button>
+                </div>
               </div>
             </div>
           )}
