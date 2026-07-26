@@ -10,7 +10,6 @@ import "./sidebar.css";
 
 export default function Sidebar() {
   const files = useFileStore((state) => state.files);
-  const activeFileId = useFileStore((state) => state.activeFileId);
   const updateActiveFile = useFileStore((state) => state.updateActiveFile);
   const addFile = useFileStore((state) => state.addFile);
 
