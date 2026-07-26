@@ -115,7 +115,7 @@ Ensure you have the following installed on your machine:
    npm install
    npm run tauri dev
 
-** Building for Production**
+**Building for Production**
   To compile a standalone, optimized desktop binary (.exe, .msi, .dmg, or .AppImage):
 
   npm run tauri build
