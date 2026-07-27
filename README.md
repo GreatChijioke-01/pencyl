@@ -59,7 +59,7 @@ Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungr
 
 ### 4. Multi-Provider & Local Offline Support
 * **Cloud LLMs:** Fast inference using Groq, OpenAI, and Anthropic API keys.
-* **100% Offline via Local Models:** Connect seamlessly to Ollama or LM Studio to run models (Llama 3, DeepSeek-Coder, Qwen) fully offline with complete privacy.
+* **100% Offline via Local Models:** Connect seamlessly to Ollama to run models (Llama 3, DeepSeek-Coder, Qwen) fully offline with complete privacy.
 
 ---
 
