@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useThemeStore, type ThemePreference, type ResolvedTheme } from "../../store/themeStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useAIStore } from "../../store/ai_store";
-import { Settings, Bot, Palette, Keyboard, X } from 'lucide-react';
+import { Settings, Bot, Palette, Keyboard, X, RefreshCw, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import "./Preferences.css";
 
 type PreferencesTab = "general" | "ai-config" | "appearance" | "hotkeys";
@@ -20,6 +22,8 @@ const KEYBINDING_ACTIONS = [
 
 export default function Preferences({ onClose }: PreferencesProps) {
   const [activeTab, setActiveTab] = useState<PreferencesTab>("general");
+  const [updateStatus, setUpdateStatus] = useState('idle');
+  const [updateError, setUpdateError] = useState<string | null>(null);
   
   // Settings store
   const currentVersion = useSettingsStore((state) => state.currentVersion);
@@ -87,11 +91,30 @@ export default function Preferences({ onClose }: PreferencesProps) {
     onClose();
   };
 
-  const handleCheckForUpdates = () => {
-    // Tauri auto-updater functionality
-    console.log("Checking for updates...");
-    // This would connect to Tauri's auto-updater in a real implementation
-    alert("Update check would be implemented with Tauri auto-updater");
+  const handleCheckForUpdates = async () => {
+    setUpdateStatus('checking');
+    setUpdateError(null);
+    try {
+      const update = await check();
+      if (update !== null) {
+        setUpdateStatus('downloading');
+        await update.downloadAndInstall();
+        await relaunch();
+      } else {
+        setUpdateStatus('latest');
+      }
+    } catch (error) {
+      console.error("Update check failed:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("fetch") || message.includes("network") || message.includes("connect") || message.includes("ECONNREFUSED")) {
+        setUpdateError("Unable to reach update server. This is expected if no GitHub releases have been published yet.");
+      } else if (message.includes("404") || message.includes("not found")) {
+        setUpdateError("No releases found. Publish a release on GitHub to enable updates.");
+      } else {
+        setUpdateError("Update check failed: " + message);
+      }
+      setUpdateStatus('error');
+    }
   };
 
   const [editingAction, setEditingAction] = useState<string | null>(null);
@@ -115,6 +138,58 @@ export default function Preferences({ onClose }: PreferencesProps) {
   };
 
   const editingRef = useRef<HTMLDivElement | null>(null);
+
+
+  const getUpdateButtonContent = () => {
+    switch (updateStatus) {
+      case 'checking':
+        return <>
+          <RefreshCw size={16} className="preferences-update-spinner" />
+          Checking...
+        </>;
+      case 'downloading':
+        return <>
+          <Download size={16} />
+          Downloading and Installing...
+        </>;
+      case 'latest':
+        return <>
+          <CheckCircle size={16} />
+          Already Up-to-Date
+        </>;
+      case 'error':
+        return <>
+          <AlertCircle size={16} />
+          Check Failed - Retry
+        </>;
+      default:
+        return <>
+          <RefreshCw size={16} />
+          Check for Updates
+        </>;
+    }
+  };
+
+  const isUpdating = updateStatus === 'checking' || updateStatus === 'downloading';
+
+  const getUpdateStatusMessage = () => {
+    switch (updateStatus) {
+      case 'checking':
+        return <span className="preferences-update-status checking">Checking for updates...</span>;
+      case 'downloading':
+        return <span className="preferences-update-status downloading">Downloading update and installing...</span>;
+      case 'latest':
+        return <span className="preferences-update-status latest">You already have the latest version installed.</span>;
+      case 'error':
+        return (
+          <span className="preferences-update-status error">
+            {updateError || "Failed to check for updates."}
+          </span>
+        );
+      default:
+        return <span className="preferences-update-status idle">Tauri Auto-Updater is active.</span>;
+    }
+  };
 
   useEffect(() => {
     if (editingAction && editingRef.current) {
@@ -189,13 +264,14 @@ export default function Preferences({ onClose }: PreferencesProps) {
                   </div>
                 </div>
                 <button 
-                  className="preferences-button" 
+                  className="preferences-button preferences-update-button"
                   onClick={handleCheckForUpdates}
+                  disabled={isUpdating}
                 >
-                  Check for Updates
+                  {getUpdateButtonContent()}
                 </button>
                 <p className="preferences-setting-description">
-                  Tauri Auto-Updater functionality
+                  {getUpdateStatusMessage()}
                 </p>
               </div>
 
@@ -316,7 +392,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                   <input
                     type="text"
                     className="preferences-text-input"
-                    placeholder="http://localhost:11434"
+                    placeholder="http://127.0.0.1:11434"
                     value={ollamaBaseUrl}
                     onChange={(e) => setOllamaBaseUrl(e.target.value)}
                   />

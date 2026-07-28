@@ -22,7 +22,12 @@ import {
   getMessageMeta,
   isBlockedInteractiveCommand,
 } from "../../services/aiAgentParser";
-import { chatCompletion, type ChatCompletionMessage } from "../../services/aiService";
+import {
+  chatCompletion,
+  normalizeOllamaBaseUrl,
+  testOllamaConnection,
+  type ChatCompletionMessage,
+} from "../../services/aiService";
 import { useAIStore, PROVIDER_MODEL_DEFAULTS, type AIProvider } from "../../store/ai_store";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useDiffStore } from "../../store/diffStore";
@@ -145,6 +150,16 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
   const [tempKey, setTempKey] = useState("");
   const [showSetup, setShowSetup] = useState(false);
   const [showCommandPermission, setShowCommandPermission] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    const res = await testOllamaConnection(ollamaBaseUrl, ollamaModel);
+    setTestResult(res);
+    setIsTesting(false);
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -278,17 +293,6 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
       // Set pending command for user approval
       setPendingCommand(command, normalizedRoot);
       break;
-
-      aiResponse = await chatCompletion({
-        provider,
-        apiKey,
-        messages: conversation,
-        openaiModel,
-        groqModel,
-        anthropicModel,
-        ollamaBaseUrl,
-        ollamaModel,
-      });
     }
   };
 
@@ -412,7 +416,11 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
                   id="ollama-url"
                   type="text"
                   value={ollamaBaseUrl}
-                  onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                  onChange={(e) => {
+                    setOllamaBaseUrl(e.target.value);
+                    setTestResult(null);
+                  }}
+                  onBlur={() => setOllamaBaseUrl(normalizeOllamaBaseUrl(ollamaBaseUrl))}
                 />
               </div>
               <div className="ai-chat-field">
@@ -421,8 +429,37 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
                   id="ollama-model"
                   type="text"
                   value={ollamaModel}
-                  onChange={(e) => setOllamaModel(e.target.value)}
+                  onChange={(e) => {
+                    setOllamaModel(e.target.value);
+                    setTestResult(null);
+                  }}
                 />
+              </div>
+              <div className="ai-chat-field" style={{ marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="ai-chat-secondary-button"
+                  onClick={handleTestConnection}
+                  disabled={isTesting}
+                >
+                  {isTesting ? "Testing Connection..." : "Test Connection"}
+                </button>
+                {testResult && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      lineHeight: "1.4",
+                      background: testResult.ok ? "rgba(34, 197, 94, 0.12)" : "rgba(239, 68, 68, 0.12)",
+                      color: testResult.ok ? "#22c55e" : "#ef4444",
+                      border: `1px solid ${testResult.ok ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                    }}
+                  >
+                    {testResult.message}
+                  </div>
+                )}
               </div>
             </>
           ) : (

@@ -41,7 +41,7 @@ export const useAIStore = create<AIState>()(
       openaiModel: PROVIDER_MODEL_DEFAULTS.openai.defaultModel,
       groqModel: PROVIDER_MODEL_DEFAULTS.groq.defaultModel,
       anthropicModel: PROVIDER_MODEL_DEFAULTS.anthropic.defaultModel,
-      ollamaBaseUrl: "http://localhost:11434",
+      ollamaBaseUrl: "http://127.0.0.1:11434",
       ollamaModel: PROVIDER_MODEL_DEFAULTS.ollama.defaultModel,
 
       setApiKey: (key) => set({ apiKey: key.trim() }),

@@ -531,6 +531,61 @@
   transform: translateY(1px);
 }
 
+/* Update button with icon */
+.preferences-update-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preferences-update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.preferences-update-button:disabled:hover {
+  border-color: var(--border-color);
+  background-color: var(--button-bg);
+}
+
+.preferences-update-spinner {
+  animation: preferences-spin 1s linear infinite;
+}
+
+@keyframes preferences-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Update status inline messages */
+.preferences-update-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.preferences-update-status.idle {
+  color: var(--muted-text-color);
+}
+
+.preferences-update-status.checking {
+  color: var(--primary-color);
+}
+
+.preferences-update-status.downloading {
+  color: var(--primary-color);
+}
+
+.preferences-update-status.latest {
+  color: #22c55e;
+}
+
+.preferences-update-status.error {
+  color: #ef4444;
+}
+
 /* Custom scrollbar styling for preferences areas */
 .preferences-main::-webkit-scrollbar {
   width: 6px;

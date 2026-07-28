@@ -40,9 +40,22 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Pencyl AI ${{ github.ref_name }}'
-          releaseBody: 'Pencyl AI Desktop IDE Release'
-          releaseDraft: true
+          releaseName: 'Pencyl ${{ github.ref_name }}'
+          releaseBody: |
+            ## What's New in Pencyl ${{ github.ref_name }}
+
+            ### Features & Improvements
+            - **Seamless Auto-Updater:** Updates now check, download, and install directly inside Preferences without intrusive OS alert popups.
+            - **Clean UI Feedback:** Real-time state updates during the download and restart process.
+
+            ### Bug Fixes
+            - **Ollama Integration Fix:** Resolved issues when connecting to local Ollama instances by fixing cross-origin fetching and IP resolution.
+
+            ---
+            *Lightweight, local-first coding built with Rust and React.*
+          releaseDraft: false
           prerelease: false
