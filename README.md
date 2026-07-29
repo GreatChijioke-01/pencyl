@@ -2,7 +2,7 @@
   <img src="./public/logo.png" alt="Pencyl AI Logo" width="120" height="120" />
 </p>
 
-<h1 align="center">Pencyl AI</h1>
+<h1 align="center">Pencyl</h1>
 
 <p align="center">
   <strong>A lightweight, lightning-fast desktop IDE with seamless AI integration and precision code control.</strong>
