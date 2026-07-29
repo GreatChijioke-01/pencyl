@@ -2,14 +2,14 @@
   <img src="./public/logo.png" alt="Pencyl AI Logo" width="120" height="120" />
 </p>
 
-<h1 align="center">Pencyl AI</h1>
+<h1 align="center">Pencyl</h1>
 
 <p align="center">
   <strong>A lightweight, lightning-fast desktop IDE with seamless AI integration and precision code control.</strong>
 </p>
 
 <p align="center">
-  <a href="#-why-pencyl-ai">Why Pencyl AI?</a> •
+  <a href="#-why-pencyl-ai">Why Pencyl?</a> •
   <a href="#-key-features">Features</a> •
   <a href="#-screenshots">Screenshots</a> •
   <a href="#-tech-stack">Tech Stack</a> •
@@ -34,11 +34,11 @@
 
 ---
 
-## Why Pencyl AI?
+## Why Pencyl?
 
 Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungry—often consuming gigabytes of RAM and bogging down your system just to stay open.
 
-**Pencyl AI** is designed from the ground up to be an **ultra-lightweight, lightning-fast IDE with seamless AI integration**. Powered by **Tauri 2.0 (Rust)** and the **Monaco Editor**, Pencyl delivers sub-second startup times and a minimal memory footprint while giving you deep, controllable AI collaboration—offering the raw performance of a native desktop app with the intelligence of modern LLMs.
+**Pencyl** is designed from the ground up to be an **ultra-lightweight, lightning-fast IDE with seamless AI integration**. Powered by **Tauri 2.0 (Rust)** and the **Monaco Editor**, Pencyl delivers sub-second startup times and a minimal memory footprint while giving you deep, controllable AI collaboration—offering the raw performance of a native desktop app with the intelligence of modern LLMs.
 
 ---
 
@@ -86,7 +86,7 @@ Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungr
 
 ## Tech Stack
 
-Pencyl AI separates UI rendering from OS-level file I/O and process execution using an asynchronous Rust Inter-Process Communication (IPC) bridge:
+Pencyl separates UI rendering from OS-level file I/O and process execution using an asynchronous Rust Inter-Process Communication (IPC) bridge:
 
 * **Frontend:** React 18, TypeScript, Zustand (State Management), Monaco Editor (`@monaco-editor/react`), Lucide React.
 * **Backend:** Tauri 2.0, Rust (Command Invocation, File I/O, Subprocess Execution).
@@ -109,7 +109,7 @@ Ensure you have the following installed on your machine:
 
 1. **Clone the Repository:**
    ```bash
-   git clone [https://github.com/GreatChijioke-01/pencyl-ai.git](https://github.com/GreatChijioke-01/pencyl-ai.git)
+   git clone [https://github.com/GreatChijioke-01/pencyl.git](https://github.com/GreatChijioke-01/pencyl-ai.git)
 
    cd pencyl-ai
    npm install
