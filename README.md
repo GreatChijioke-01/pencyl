@@ -34,11 +34,11 @@
 
 ---
 
-## Why Pencyl AI?
+## Why Pencyl?
 
 Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungry—often consuming gigabytes of RAM and bogging down your system just to stay open.
 
-**Pencyl AI** is designed from the ground up to be an **ultra-lightweight, lightning-fast IDE with seamless AI integration**. Powered by **Tauri 2.0 (Rust)** and the **Monaco Editor**, Pencyl delivers sub-second startup times and a minimal memory footprint while giving you deep, controllable AI collaboration—offering the raw performance of a native desktop app with the intelligence of modern LLMs.
+**Pencyl** is designed from the ground up to be an **ultra-lightweight, lightning-fast IDE with seamless AI integration**. Powered by **Tauri 2.0 (Rust)** and the **Monaco Editor**, Pencyl delivers sub-second startup times and a minimal memory footprint while giving you deep, controllable AI collaboration—offering the raw performance of a native desktop app with the intelligence of modern LLMs.
 
 ---
 
@@ -86,7 +86,7 @@ Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungr
 
 ## Tech Stack
 
-Pencyl AI separates UI rendering from OS-level file I/O and process execution using an asynchronous Rust Inter-Process Communication (IPC) bridge:
+Pencyl separates UI rendering from OS-level file I/O and process execution using an asynchronous Rust Inter-Process Communication (IPC) bridge:
 
 * **Frontend:** React 18, TypeScript, Zustand (State Management), Monaco Editor (`@monaco-editor/react`), Lucide React.
 * **Backend:** Tauri 2.0, Rust (Command Invocation, File I/O, Subprocess Execution).
