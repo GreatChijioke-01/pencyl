@@ -43,6 +43,24 @@ export interface FileNode {
   children?: FileNode[] | null;
 }
 
+export interface GitStatusEntry {
+  path: string;
+  status: string;
+  staged: boolean;
+}
+
+export interface GitStatusSnapshot {
+  root_path: string;
+  changes: GitStatusEntry[];
+  refreshed_at: number;
+  cached: boolean;
+  error?: string | null;
+}
+
 export async function readDirTree(path: string): Promise<FileNode> {
   return (await invoke("read_dir_tree", { path })) as FileNode;
+}
+
+export async function readGitStatusSnapshot(rootPath: string): Promise<GitStatusSnapshot> {
+  return (await invoke("git_status_snapshot", { rootPath })) as GitStatusSnapshot;
 }

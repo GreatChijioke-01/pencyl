@@ -38,7 +38,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlEMUI3OEFGRDJENzdBMUEKUldRYWV0ZlNyM2diblFDeWp1cTJEMnllaUpkZ0dkL3pFbWRVa1g0YXNSU2JwYWdQd3c0cm1JQU0K",
       "endpoints": [
-        "https://github.com/GreatChijioke-01/pencyl-ai/releases/latest/download/latest.json"
+        "https://github.com/GreatChijioke-01/Pencyl/releases/latest/download/latest.json"
       ]
     }
   }

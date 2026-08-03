@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { runShellCommand } from "../../services/fileService";
+import { readGitStatusSnapshot, runShellCommand } from "../../services/fileService";
 import "./git_view.css";
 
 interface FileChange {
   path: string;
-  status: string; // M, A, D, ?, etc.
+  status: string;
   staged: boolean;
 }
 
@@ -15,35 +15,33 @@ export default function GitGraph() {
   const [commitMessage, setCommitMessage] = useState("");
   const [log, setLog] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
   const [committing, setCommitting] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const [logLoaded, setLogLoaded] = useState(false);
 
-  // Get and sanitize the root path (strip any accidental wrapping quotes)
-  const getRootPath = (): string | null => {
+  const statusTimerRef = useRef<number | null>(null);
+  const inFlightStatusRef = useRef(false);
+  const queuedStatusRef = useRef(false);
+
+  const getRootPath = useCallback((): string | null => {
     let path = (globalThis as any).__PENCYL_PROJECT_ROOT_PATH as string | undefined ?? null;
     if (path) {
-      // Strip wrapping quotes if present (some dialog libraries may add them)
       path = path.replace(/^["']|["']$/g, "");
-      // Also strip any extra whitespace
       path = path.trim();
     }
     return path;
-  };
+  }, []);
 
-  // Build a git command. Uses git -C with NO extra quotes around the path.
-  // The path should have quotes stripped already by getRootPath().
-  // The Rust backend runs via cmd /C on Windows.
-  const gitCommand = (subcommand: string): string => {
+  const gitCommand = useCallback((subcommand: string): string => {
     const rootPath = getRootPath();
     if (!rootPath) return subcommand;
-    // No extra quotes - cmd /C passes this to git cleanly
     return `git -C ${rootPath} ${subcommand}`;
-  };
+  }, [getRootPath]);
 
-  // Show a status message that auto-clears after a delay
   const showMessage = useCallback((msg: string, type: "success" | "error" | "info" = "info") => {
     setMessage(msg);
     setMessageType(type);
@@ -54,40 +52,7 @@ export default function GitGraph() {
     }
   }, []);
 
-  // Parse `git status --porcelain` output
-  const parseStatus = (output: string): FileChange[] => {
-    const lines = output.trim().split("\n").filter(Boolean);
-    return lines.map((line) => {
-      // Porcelain format: XY filename
-      // X = staging area status, Y = working tree status
-      const x = line[0];
-      const y = line[1];
-      const path = line.substring(3).trim();
-
-      // Determine the visible status
-      let status = y;
-      let staged = x !== " " && x !== "?";
-
-      if (staged && (y === " " || y === ".")) {
-        // Only staged, no working tree change
-        status = x;
-      } else if (y !== " " && y !== ".") {
-        // Working tree change takes precedence for display
-        status = y;
-        // If also staged, we just show the working tree status but mark as staged too
-      }
-
-      // Untracked files
-      if (x === "?" && y === "?") {
-        status = "?";
-        staged = false;
-      }
-
-      return { path, status, staged };
-    });
-  };
-
-  const fetchChanges = async () => {
+  const fetchChanges = useCallback(async () => {
     const rootPath = getRootPath();
     if (!rootPath) {
       setChanges([]);
@@ -95,22 +60,44 @@ export default function GitGraph() {
       return;
     }
 
+    if (inFlightStatusRef.current) {
+      queuedStatusRef.current = true;
+      return;
+    }
+
+    inFlightStatusRef.current = true;
+    setStatusLoading(true);
+
     try {
-      const result = await runShellCommand(gitCommand(`status --porcelain`));
-      if (result.includes("fatal: not a git repository")) {
+      const snapshot = await readGitStatusSnapshot(rootPath);
+      if (snapshot.error) {
         setChanges([]);
-        showMessage("Not a git repository.", "info");
-      } else if (result.includes("fatal:")) {
-        setChanges([]);
-        showMessage("Git error: " + result, "error");
+        showMessage(snapshot.error.includes("not a git repository") ? "Not a git repository." : snapshot.error, "info");
       } else {
-        setChanges(parseStatus(result));
+        setChanges(snapshot.changes);
       }
     } catch (err) {
       setChanges([]);
       showMessage("Failed to fetch changes: " + String(err), "error");
+    } finally {
+      inFlightStatusRef.current = false;
+      setStatusLoading(false);
+      if (queuedStatusRef.current) {
+        queuedStatusRef.current = false;
+        void fetchChanges();
+      }
     }
-  };
+  }, [getRootPath, showMessage]);
+
+  const scheduleStatusRefresh = useCallback((delay = 180) => {
+    if (statusTimerRef.current != null) {
+      window.clearTimeout(statusTimerRef.current);
+    }
+
+    statusTimerRef.current = window.setTimeout(() => {
+      void fetchChanges();
+    }, delay);
+  }, [fetchChanges]);
 
   const fetchLog = useCallback(async () => {
     const rootPath = getRootPath();
@@ -137,14 +124,50 @@ export default function GitGraph() {
   }, []);
 
   const refreshAll = useCallback(() => {
-    fetchChanges();
-    fetchLog();
-  }, [fetchLog]);
+    scheduleStatusRefresh(0);
+    if (logLoaded) {
+      void fetchLog();
+    }
+  }, [fetchLog, logLoaded, scheduleStatusRefresh]);
 
   useEffect(() => {
-    fetchChanges();
-    fetchLog();
-  }, [fetchLog]);
+    if (statusTimerRef.current != null) {
+      window.clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = null;
+    }
+
+    if (activeTab === "changes") {
+      scheduleStatusRefresh(0);
+      return;
+    }
+
+    if (activeTab === "graph" && !logLoaded) {
+      setLoading(true);
+      void fetchLog().finally(() => {
+        setLogLoaded(true);
+      });
+    }
+  }, [activeTab, fetchLog, logLoaded, scheduleStatusRefresh]);
+
+  useEffect(() => {
+    if (activeTab !== "changes") return;
+
+    const intervalId = window.setInterval(() => {
+      scheduleStatusRefresh(0);
+    }, 2500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [activeTab, scheduleStatusRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current != null) {
+        window.clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleCommit = async () => {
     const rootPath = getRootPath();
@@ -208,6 +231,7 @@ export default function GitGraph() {
         showMessage("Push failed: " + result, "error");
       } else {
         showMessage("Pushed successfully!", "success");
+        refreshAll();
       }
     } catch (err) {
       showMessage("Push failed: " + String(err), "error");
@@ -260,8 +284,8 @@ export default function GitGraph() {
           <div className="sc-header">
             <span className="sc-header-title">CHANGES</span>
             <div className="sc-actions">
-              <button className="sc-action-btn" onClick={fetchChanges}>
-                Refresh
+              <button className="sc-action-btn" onClick={() => scheduleStatusRefresh(0)}>
+                {statusLoading ? "Refreshing..." : "Refresh"}
               </button>
             </div>
           </div>

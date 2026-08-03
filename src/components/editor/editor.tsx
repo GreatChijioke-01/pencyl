@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import { Editor as MonacoEditor, DiffEditor } from "@monaco-editor/react";
+import { Editor as MonacoEditor, DiffEditor, type Monaco } from "@monaco-editor/react";
 
 import { useFileStore } from "../../store/filestore";
 
@@ -43,9 +43,82 @@ export default function Editor() {
     // Get the root path from global variable set by sidebar
     const rootPath = globalThis.__PENCYL_PROJECT_ROOT_PATH ?? null;
 
+    const editorLanguage = useMemo(() => {
+        const lowerPath = activeFile?.path.toLowerCase() ?? "";
+        if (lowerPath.endsWith(".tsx") || lowerPath.endsWith(".ts")) {
+            return "typescript";
+        }
+        if (lowerPath.endsWith(".jsx") || lowerPath.endsWith(".js")) {
+            return "javascript";
+        }
+
+        return "typescript";
+    }, [activeFile?.path]);
+
 
 
     const [isApplying, setIsApplying] = useState(false);
+
+    const handleMonacoBeforeMount = useCallback((monaco: Monaco) => {
+        const jsxRuntimeTypes = [
+            "declare namespace JSX {",
+            "  interface IntrinsicElements {",
+            "    [elementName: string]: any;",
+            "  }",
+            "}",
+            "declare module 'react/jsx-runtime' {",
+            "  export const Fragment: any;",
+            "  export function jsx(type: any, props: any, key?: any): any;",
+            "  export function jsxs(type: any, props: any, key?: any): any;",
+            "}",
+            "declare module 'react/jsx-dev-runtime' {",
+            "  export const Fragment: any;",
+            "  export function jsxDEV(type: any, props: any, key?: any, isStatic?: boolean, source?: any, self?: any): any;",
+            "}",
+        ].join("\n");
+
+        monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+            jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+            target: monaco.languages.typescript.ScriptTarget.ESNext,
+            module: monaco.languages.typescript.ModuleKind.ESNext,
+            moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+            allowSyntheticDefaultImports: true,
+            esModuleInterop: true,
+            allowNonTsExtensions: true,
+            resolveJsonModule: true,
+            noEmit: true,
+            strict: true,
+            lib: ["esnext", "dom", "dom.iterable"],
+        });
+
+        monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+            noSemanticValidation: true,
+            noSyntaxValidation: true,
+        });
+
+        monaco.languages.typescript.typescriptDefaults.addExtraLib(jsxRuntimeTypes, "ts:jsx-runtime.d.ts");
+
+        monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+            jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+            target: monaco.languages.typescript.ScriptTarget.ESNext,
+            module: monaco.languages.typescript.ModuleKind.ESNext,
+            moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+            allowSyntheticDefaultImports: true,
+            esModuleInterop: true,
+            allowNonTsExtensions: true,
+            resolveJsonModule: true,
+            noEmit: true,
+            checkJs: false,
+            lib: ["esnext", "dom", "dom.iterable"],
+        });
+
+        monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+            noSemanticValidation: true,
+            noSyntaxValidation: true,
+        });
+
+        monaco.languages.typescript.javascriptDefaults.addExtraLib(jsxRuntimeTypes, "js:jsx-runtime.d.ts");
+    }, []);
 
     // If no active file, show empty state (prioritized over terminal)
     if (!activeFile) {
@@ -183,6 +256,8 @@ export default function Editor() {
                     <MonacoEditor
                         height="100%"
                         width="100%"
+                        beforeMount={handleMonacoBeforeMount}
+                        language={editorLanguage}
                         theme={editorTheme}
                         path={activeFile.path}
                         value={activeFile.content}
@@ -191,7 +266,8 @@ export default function Editor() {
                             minimap: { enabled: false },
                             fontSize: 14,
                             wordWrap: "on",
-                            padding: { top: 16 }
+                            padding: { top: 16 },
+                            renderValidationDecorations: "off"
                         }}
                     />
                 )}

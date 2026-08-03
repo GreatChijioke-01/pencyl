@@ -1,7 +1,7 @@
 import React from "react";
 import type { FileNode } from "./types";
 import getFileIcon from "./fileIcons";
-import { Trash2, ChevronDown, ChevronRight, Folder, FileText, Pencil } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronRight, Folder, FileText, Pencil } from "lucide-react";
 import "./fileTree.css";
 
 interface FileItemProps {
@@ -14,6 +14,7 @@ interface FileItemProps {
   newItemName: string;
   renamingPath: string | null;
   renameValue: string;
+  loadingFolders: Record<string, boolean>;
   onSelectNode: (path: string | null, isDirectory: boolean) => void;
   onToggleOpen: (path: string) => void;
   onStartRename: (node: FileNode) => void;
@@ -29,7 +30,7 @@ interface FileItemProps {
   onRequestRefresh: () => void;
 }
 
-export default function FileItem({
+function FileItem({
   node,
   level = 0,
   rootPath,
@@ -39,6 +40,7 @@ export default function FileItem({
   newItemName,
   renamingPath,
   renameValue,
+  loadingFolders,
   onSelectNode,
   onToggleOpen,
   onStartRename,
@@ -58,6 +60,7 @@ export default function FileItem({
   const isRootNode = node.path === rootPath;
   const isFolder = node.is_directory;
   const isOpen = isFolder ? node.isOpen ?? false : false;
+  const isLoadingChildren = Boolean(loadingFolders[node.path]);
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -133,8 +136,15 @@ export default function FileItem({
         {renderLabel()}
         <div className="ft-actions">
           {isFolder && (
-            <button className="ft-action-button" onClick={(event) => { event.stopPropagation(); onToggleOpen(node.path); }} title={isOpen ? "Collapse" : "Expand"}>
-              {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <button
+              className="ft-action-button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleOpen(node.path);
+              }}
+              title={isOpen ? "Collapse" : "Expand"}
+            >
+              {isLoadingChildren ? <span className="ft-spinner" /> : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
           )}
           {!isRootNode && (
@@ -187,6 +197,7 @@ export default function FileItem({
               newItemName={newItemName}
               renamingPath={renamingPath}
               renameValue={renameValue}
+              loadingFolders={loadingFolders}
               onSelectNode={onSelectNode}
               onToggleOpen={onToggleOpen}
               onStartRename={onStartRename}
@@ -207,3 +218,33 @@ export default function FileItem({
     </div>
   );
 }
+
+function areEqual(previousProps: FileItemProps, nextProps: FileItemProps) {
+  return (
+    previousProps.node === nextProps.node &&
+    previousProps.level === nextProps.level &&
+    previousProps.rootPath === nextProps.rootPath &&
+    previousProps.selectedPath === nextProps.selectedPath &&
+    previousProps.isCreating === nextProps.isCreating &&
+    previousProps.creationTargetPath === nextProps.creationTargetPath &&
+    previousProps.newItemName === nextProps.newItemName &&
+    previousProps.renamingPath === nextProps.renamingPath &&
+    previousProps.renameValue === nextProps.renameValue &&
+    previousProps.loadingFolders[previousProps.node.path] === nextProps.loadingFolders[nextProps.node.path] &&
+    previousProps.onSelectNode === nextProps.onSelectNode &&
+    previousProps.onToggleOpen === nextProps.onToggleOpen &&
+    previousProps.onStartRename === nextProps.onStartRename &&
+    previousProps.onDeleteNode === nextProps.onDeleteNode &&
+    previousProps.onMoveNode === nextProps.onMoveNode &&
+    previousProps.onRenameValueChange === nextProps.onRenameValueChange &&
+    previousProps.onSubmitRename === nextProps.onSubmitRename &&
+    previousProps.onCancelRename === nextProps.onCancelRename &&
+    previousProps.onNewItemNameChange === nextProps.onNewItemNameChange &&
+    previousProps.onSubmitNewItem === nextProps.onSubmitNewItem &&
+    previousProps.onCancelCreate === nextProps.onCancelCreate &&
+    previousProps.onFileOpen === nextProps.onFileOpen &&
+    previousProps.onRequestRefresh === nextProps.onRequestRefresh
+  );
+}
+
+export default React.memo(FileItem, areEqual);
