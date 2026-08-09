@@ -87,11 +87,11 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install macOS Cross-Compile Targets
-        if: matrix.platform == 'macos-latest'
-        run: |
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-apple-darwin
+      # Caches Rust dependencies so build times drop drastically
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri'
 
       - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -117,21 +117,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd src-tauri/target/release/bundle
-          ARTIFACT=$(ls *${{ matrix.artifact_pattern }} 2>/dev/null | head -1)
-          if [ -n "$ARTIFACT" ]; then
-            echo "Found artifact: $ARTIFACT"
-            UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
-            UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
-            curl -s -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary @"$ARTIFACT" \
-              "${UPLOAD_URL}?name=$(basename "$ARTIFACT")"
-            echo "Uploaded $ARTIFACT"
+          # Dynamically locate the bundle directory regardless of target path
+          BUNDLE_DIR=$(find src-tauri/target -type d -path "*/release/bundle" | head -n 1)
+          
+          if [ -d "$BUNDLE_DIR" ]; then
+            cd "$BUNDLE_DIR"
+            # Look inside subdirectories (like dmg/, msi/, deb/) for matching pattern
+            ARTIFACT=$(find . -type f -name "${{ matrix.artifact_pattern }}" | head -n 1)
+            
+            if [ -n "$ARTIFACT" ]; then
+              echo "Found artifact: $ARTIFACT"
+              UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
+              UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
+              curl -s -X POST \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$ARTIFACT" \
+                "${UPLOAD_URL}?name=$(basename "$ARTIFACT")"
+              echo "Uploaded $(basename "$ARTIFACT")"
+            else
+              echo "No artifact found matching ${{ matrix.artifact_pattern }}"
+              ls -R
+            fi
           else
-            echo "No artifact found matching ${{ matrix.artifact_pattern }}"
-            ls -la
+            echo "Bundle directory not found!"
+            ls -R src-tauri/target
           fi
         shell: bash
 
