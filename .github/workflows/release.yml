@@ -23,11 +23,11 @@ jobs:
               `## What's New in Pencyl ${{ github.ref_name }}`,
               ``,
               `### Features & Improvements`,
-              `- **Fast search-bar suggestion:** Improve load speed for searching files on the search bar`,
-              `- **Improved UI:** Removed unnecessary spaces and improved UI`,
+              `**Fast search-bar suggestion:** Improve load speed for searching files on the search bar`,
+              `**Improved UI:** Removed unnecessary spaces and improved UI`,
               ``,
               `### Bug Fixes`,
-              `- **Update function in the general setting:** Fix the updater function so it runs the update straight from GitHub releases.`,
+              `**Update function in the general setting:** Fix the updater function so it runs the update straight from GitHub releases.`,
               ``,
               `---`,
               `*Lightweight, local-first coding built with Rust and React.*`
@@ -54,19 +54,19 @@ jobs:
           # Apple Silicon Macs (M1/M2/M3)
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-            tauri_target: 'aarch64-apple-darwin'
+            artifact_pattern: '*.dmg'
           # Intel Macs
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
-            tauri_target: 'x86_64-apple-darwin'
+            artifact_pattern: '*.dmg'
           # Linux
           - platform: 'ubuntu-22.04'
             args: ''
-            tauri_target: 'x86_64-unknown-linux-gnu'
+            artifact_pattern: '*.deb'
           # Windows
           - platform: 'windows-latest'
             args: ''
-            tauri_target: 'x86_64-pc-windows-msvc'
+            artifact_pattern: '*.msi'
 
     runs-on: ${{ matrix.platform }}
 
@@ -103,34 +103,27 @@ jobs:
           args: ${{ matrix.args }}
           releaseUpload: false
 
-      - name: Find Release Artifacts
-        id: find-artifacts
-        run: |
-          # Find the built artifacts in the target/release/bundle directory
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.tar.gz" \) | head -1)
-            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
-          elif [ "$RUNNER_OS" == "Windows" ]; then
-            # On Windows, use PowerShell syntax for find
-            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*.exe" \) | head -1)
-            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) | head -1)
-            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
-          fi
-          echo "artifact_path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
-          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        if: steps.find-artifacts.outputs.artifact_path != ''
-        with:
-          files: ${{ steps.find-artifacts.outputs.artifact_path }}
-          tag_name: ${{ github.ref_name }}
-          name: ${{ steps.find-artifacts.outputs.artifact_name }}
+      - name: Find and Upload Artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd src-tauri/target/release/bundle
+          ARTIFACT=$(ls *${{ matrix.artifact_pattern }} 2>/dev/null | head -1)
+          if [ -n "$ARTIFACT" ]; then
+            echo "Found artifact: $ARTIFACT"
+            UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
+            UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
+            curl -s -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$ARTIFACT" \
+              "${UPLOAD_URL}?name=$(basename "$ARTIFACT")"
+            echo "Uploaded $ARTIFACT"
+          else
+            echo "No artifact found matching ${{ matrix.artifact_pattern }}"
+            ls -la
+          fi
+        shell: bash
 
   generate-latest-json:
     needs: [create-release, build]
@@ -142,11 +135,10 @@ jobs:
 
       - name: Generate and Upload Update Manifest
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
           
-          # Generate latest.json for Tauri updater
           cat > latest.json << EOF
           {
             "version": "$VERSION",
@@ -173,15 +165,12 @@ jobs:
           }
           EOF
           
-          # Upload the latest.json file using curl
           UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
-          # Remove the {?name,label} suffix
           UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
           curl -s -X POST \
-            -H "Authorization: token $GH_TOKEN" \
+            -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
             --data-binary @latest.json \
             "${UPLOAD_URL}?name=latest.json"
-          
           echo "Uploaded latest.json to release"
         shell: bash
