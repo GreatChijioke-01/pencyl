@@ -6,45 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    outputs:
-      upload_url: ${{ steps.create-release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create-release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = [
-              `## What's New in Pencyl ${{ github.ref_name }}`,
-              ``,
-              `### Features & Improvements`,
-              `**Fast search-bar suggestion:** Improve load speed for searching files on the search bar`,
-              `**Improved UI:** Removed unnecessary spaces and improved UI`,
-              ``,
-              `### Bug Fixes`,
-              `**Update function in the general setting:** Fix the updater function so it runs the update straight from GitHub releases.`,
-              ``,
-              `---`,
-              `*Lightweight, local-first coding built with Rust and React.*`
-            ].join('\n');
-            const { data: release } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: '${{ github.ref_name }}',
-              name: 'Pencyl ${{ github.ref_name }}',
-              body: body,
-              draft: false,
-              prerelease: false
-            });
-            core.setOutput('upload_url', release.upload_url);
-
-  build:
-    needs: create-release
+  release:
     permissions:
       contents: write
     strategy:
@@ -55,22 +17,18 @@ jobs:
           - platform: 'macos-latest'
             target: 'aarch64-apple-darwin'
             args: '--target aarch64-apple-darwin'
-            artifact_pattern: '*.dmg'
           # Intel Macs
           - platform: 'macos-latest'
             target: 'x86_64-apple-darwin'
             args: '--target x86_64-apple-darwin'
-            artifact_pattern: '*.dmg'
           # Linux
           - platform: 'ubuntu-22.04'
             target: ''
             args: ''
-            artifact_pattern: '*.deb'
           # Windows
           - platform: 'windows-latest'
             target: ''
             args: ''
-            artifact_pattern: '*.msi'
 
     runs-on: ${{ matrix.platform }}
 
@@ -87,7 +45,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # Caches Rust dependencies so build times drop drastically
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -102,51 +59,33 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm install
 
-      - name: Build Tauri App
+      - name: Build and Upload Tauri App
         uses: tauri-apps/tauri-action@v0
-        id: tauri-build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Pencyl ${{ github.ref_name }}'
           args: ${{ matrix.args }}
-          releaseUpload: false
+          releaseBody: |
+            ## What's New in Pencyl ${{ github.ref_name }}
 
-      - name: Find and Upload Artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Dynamically locate the bundle directory regardless of target path
-          BUNDLE_DIR=$(find src-tauri/target -type d -path "*/release/bundle" | head -n 1)
-          
-          if [ -d "$BUNDLE_DIR" ]; then
-            cd "$BUNDLE_DIR"
-            # Look inside subdirectories (like dmg/, msi/, deb/) for matching pattern
-            ARTIFACT=$(find . -type f -name "${{ matrix.artifact_pattern }}" | head -n 1)
-            
-            if [ -n "$ARTIFACT" ]; then
-              echo "Found artifact: $ARTIFACT"
-              UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
-              UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
-              curl -s -X POST \
-                -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"$ARTIFACT" \
-                "${UPLOAD_URL}?name=$(basename "$ARTIFACT")"
-              echo "Uploaded $(basename "$ARTIFACT")"
-            else
-              echo "No artifact found matching ${{ matrix.artifact_pattern }}"
-              ls -R
-            fi
-          else
-            echo "Bundle directory not found!"
-            ls -R src-tauri/target
-          fi
-        shell: bash
+            ### Features & Improvements
+            - **Fast search-bar suggestion:** Improved load speed for searching files on the search bar.
+            - **Improved UI:** Removed unnecessary spaces and improved UI.
+
+            ### Bug Fixes
+            - **Update function in general settings:** Fixed updater function to run directly from GitHub releases.
+
+            ---
+            *Lightweight, local-first coding built with Rust and React.*
+          releaseDraft: false
+          prerelease: false
 
   generate-latest-json:
-    needs: [create-release, build]
+    needs: release
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -185,12 +124,14 @@ jobs:
           }
           EOF
 
-          UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
-          UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
+          # Attach latest.json directly to the created tag release
+          RELEASE_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION" | jq -r '.id')
+
           curl -s -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            --data-binary @latest.json \
-            "${UPLOAD_URL}?name=latest.json"
+            --upload-file latest.json \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=latest.json"
           echo "Uploaded latest.json to release"
         shell: bash
