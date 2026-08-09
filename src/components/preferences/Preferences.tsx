@@ -203,7 +203,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
       <div className="preferences-header">
         <div className="preferences-header-content">
           <Settings size={20} className="preferences-icon" />
-          <h2 className="preferences-title">Preferences</h2>
+          <h2 className="preferences-title">Settings</h2>
         </div>
         <button className="preferences-close-button" onClick={onClose}>
           <X size={20} />

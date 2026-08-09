@@ -133,6 +133,15 @@ pub struct GitStatusSnapshot {
     pub error: Option<String>,
 }
 
+#[derive(Serialize, Clone)]
+pub struct SearchResult {
+    pub name: String,
+    pub path: String,
+    pub relative_path: String,
+    pub is_directory: bool,
+    pub score: i32,
+}
+
 struct CachedGitStatus {
     snapshot: GitStatusSnapshot,
     fetched_at: Instant,
@@ -241,6 +250,159 @@ async fn run_git_status(root_path: String) -> Result<GitStatusSnapshot, String> 
 #[command]
 pub async fn git_status_snapshot(root_path: String) -> Result<GitStatusSnapshot, String> {
     run_git_status(root_path).await
+}
+
+fn get_relative_path(root_str: &str, path_str: &str) -> String {
+    let norm_root = root_str.replace('\\', "/").trim_end_matches('/').to_string();
+    let norm_path = path_str.replace('\\', "/");
+
+    let norm_root_lower = norm_root.to_lowercase();
+    let norm_path_lower = norm_path.to_lowercase();
+
+    if !norm_root_lower.is_empty() && norm_path_lower.starts_with(&norm_root_lower) {
+        let rel = &norm_path[norm_root.len()..];
+        rel.trim_start_matches('/').to_string()
+    } else {
+        norm_path
+    }
+}
+
+#[command]
+pub async fn search_files(root_path: String, query: String, max_results: Option<u32>) -> Result<Vec<SearchResult>, String> {
+    let sanitized_root = sanitize_path(&root_path);
+    let q = query.to_lowercase().replace('\\', "/");
+    let max = max_results.unwrap_or(50) as usize;
+
+    if sanitized_root.is_empty() || q.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let work_root = sanitized_root.clone();
+    let results = tauri::async_runtime::spawn_blocking(move || {
+        let mut out: Vec<SearchResult> = Vec::new();
+        let root = std::path::Path::new(&work_root);
+        let mut visited = 0usize;
+
+        fn is_ignored_dir(name: &str) -> bool {
+            let lower = name.to_lowercase();
+            matches!(
+                lower.as_str(),
+                ".git"
+                    | "node_modules"
+                    | "target"
+                    | "dist"
+                    | "build"
+                    | ".next"
+                    | ".svelte-kit"
+                    | ".cargo"
+                    | "vendor"
+                    | ".vs"
+                    | ".idea"
+                    | ".cache"
+                    | ".vscode"
+                    | "out"
+                    | "coverage"
+            )
+        }
+
+        fn walk_dir(
+            work_root_str: &str,
+            current: &std::path::Path,
+            q: &str,
+            depth: usize,
+            visited: &mut usize,
+            out: &mut Vec<SearchResult>,
+        ) {
+            if depth > 25 || *visited > 50000 {
+                return;
+            }
+
+            let entries = match std::fs::read_dir(current) {
+                Ok(e) => e,
+                Err(_) => return,
+            };
+
+            for entry in entries {
+                *visited += 1;
+                if *visited > 50000 {
+                    break;
+                }
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+
+                let p = entry.path();
+                let name = file_name_or_path(&p);
+                let is_dir = match entry.file_type() {
+                    Ok(ft) => ft.is_dir(),
+                    Err(_) => p.is_dir(),
+                };
+
+                if is_dir && is_ignored_dir(&name) {
+                    continue;
+                }
+
+                let p_str = p.to_string_lossy().to_string();
+                let rel_path_str = get_relative_path(work_root_str, &p_str);
+
+                let name_l = name.to_lowercase();
+                let rel_path_l = rel_path_str.to_lowercase();
+
+                let name_matches = name_l.contains(q);
+                let path_matches = rel_path_l.contains(q);
+
+                if (name_matches || path_matches) && out.len() < 500 {
+                    let mut score = 0;
+
+                    if name_l == q {
+                        score += 1000;
+                    } else if name_l.starts_with(q) {
+                        score += 800;
+                    } else if name_matches {
+                        score += 600;
+                    } else if rel_path_l.starts_with(q) {
+                        score += 500;
+                    } else if path_matches {
+                        score += 350;
+                    }
+
+                    if !is_dir {
+                        score += 50;
+                    }
+
+                    score -= (depth as i32) * 10;
+
+                    out.push(SearchResult {
+                        name: name.clone(),
+                        path: p_str,
+                        relative_path: rel_path_str,
+                        is_directory: is_dir,
+                        score,
+                    });
+                }
+
+                if is_dir {
+                    walk_dir(work_root_str, &p, q, depth + 1, visited, out);
+                }
+            }
+        }
+
+        walk_dir(&work_root, root, &q, 0, &mut visited, &mut out);
+
+        out.sort_by(|a, b| {
+            b.score
+                .cmp(&a.score)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        });
+
+        out.truncate(max);
+        out
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(results)
 }
 
 #[command]

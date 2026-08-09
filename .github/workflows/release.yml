@@ -12,7 +12,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        include:
+          # Apple Silicon Macs (M1/M2/M3)
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          # Intel Macs
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+          # Linux
+          - platform: 'ubuntu-22.04'
+            args: ''
+          # Windows
+          - platform: 'windows-latest'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -26,6 +38,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -45,15 +59,16 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Pencyl ${{ github.ref_name }}'
+          args: ${{ matrix.args }}
           releaseBody: |
             ## What's New in Pencyl ${{ github.ref_name }}
 
             ### Features & Improvements
-            - **Seamless Auto-Updater:** Updates now check, download, and install directly inside Preferences without intrusive OS alert popups.
-            - **Clean UI Feedback:** Real-time state updates during the download and restart process.
+            - **Fast search-bar suggestion :**  improve load speed for the searching files on the search bar
+            - **Improved UI:** Removed unnecessary spaces and improve ui
 
             ### Bug Fixes
-            - **Ollama Integration Fix:** Resolved issues when connecting to local Ollama instances by fixing cross-origin fetching and IP resolution.
+            - **File-explorer sidebar rendering issue:** improved the file-explorer sidebar rendering issue when rendering large projects with many directories and files.
 
             ---
             *Lightweight, local-first coding built with Rust and React.*

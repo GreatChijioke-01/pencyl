@@ -83,7 +83,7 @@ export const useSettingsStore = create<SettingsState>()(
       hotkeyBindings: { ...DEFAULT_KEYBINDINGS },
 
       // Version info (not persisted)
-      currentVersion: "v0.1.0",
+      currentVersion: tauriConf.version || "0.1.0",
       
       setAutoSave: (enabled) => {
         set({ autoSave: enabled });

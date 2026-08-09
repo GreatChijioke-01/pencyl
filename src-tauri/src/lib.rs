@@ -80,6 +80,7 @@ pub fn run() {
             commands::files::run_shell_command,
             commands::files::read_dir_tree,
             commands::files::git_status_snapshot,
+            commands::files::search_files,
             create_file,
             create_dir,
             delete_path,

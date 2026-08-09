@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { writeFileContent, readFileContent, readDirTree } from "../../services/fileService";
+import { writeFileContent, readFileContent, searchFiles } from "../../services/fileService";
 import { useFileStore } from "../../store/filestore";
 import { X, Minus, Square, Maximize2, Circle, PanelLeft, FolderGit2, Menu, Search } from "lucide-react";
 import getFileIcon from "../sidebar/fileTree/fileIcons";
@@ -24,10 +24,12 @@ export default function TitleBar({ onOpenSettings }: TitleBarProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ name: string; path: string; isDirectory: boolean }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ name: string; path: string; relativePath: string; isDirectory: boolean }[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
   const dragState = useRef({
     fromIndex: null as number | null,
     startX: 0,
@@ -51,51 +53,122 @@ export default function TitleBar({ onOpenSettings }: TitleBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search: flatten tree and filter by query
+  // Scroll selected search result into view during keyboard navigation
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedIndex]);
+
+  // Search: debounced IPC call, preserves backend relevance order with rootPath fallbacks
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setSelectedIndex(-1);
       return;
     }
 
-    const rootPath = (globalThis as any).__PENCYL_PROJECT_ROOT_PATH;
-    if (!rootPath) return;
+    let rootPath = (globalThis as any).__PENCYL_PROJECT_ROOT_PATH;
+    if (!rootPath) {
+      try {
+        rootPath = localStorage.getItem("pencyl.lastRoot");
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (!rootPath && files.length > 0) {
+      const firstPath = files.find((f) => f.path)?.path;
+      if (firstPath) {
+        const parts = firstPath.replace(/\\/g, "/").split("/");
+        parts.pop();
+        rootPath = parts.join("/");
+      }
+    }
 
-    const q = searchQuery.toLowerCase();
     let cancelled = false;
 
-    const doSearch = async () => {
+    const timer = setTimeout(async () => {
       try {
-        const tree = await readDirTree(rootPath);
+        let backendResults: any[] = [];
+        if (rootPath) {
+          backendResults = await searchFiles(rootPath, searchQuery, 50);
+        }
+
         if (cancelled) return;
 
-        const results: { name: string; path: string; isDirectory: boolean }[] = [];
+        let mapped = backendResults.map((r: any) => ({
+          name: r.name,
+          path: r.path,
+          relativePath: r.relative_path || r.path,
+          isDirectory: r.is_directory,
+        }));
 
-        const flatten = (node: any) => {
-          if (node.name.toLowerCase().includes(q)) {
-            results.push({ name: node.name, path: node.path, isDirectory: node.is_directory });
+        // Supplement with matching open files
+        const qLower = searchQuery.toLowerCase();
+        files.forEach((file) => {
+          if (file.kind === "file" && file.name) {
+            const alreadyIncluded = mapped.some((m) => m.path === file.path);
+            if (!alreadyIncluded) {
+              const nameMatches = file.name.toLowerCase().includes(qLower);
+              const pathMatches = file.path?.toLowerCase().includes(qLower);
+              if (nameMatches || pathMatches) {
+                let rel = file.name;
+                if (rootPath && file.path.toLowerCase().startsWith(rootPath.toLowerCase())) {
+                  rel = file.path.slice(rootPath.length).replace(/^[/\\]/, "");
+                }
+                mapped.push({
+                  name: file.name,
+                  path: file.path,
+                  relativePath: rel || file.name,
+                  isDirectory: false,
+                });
+              }
+            }
           }
-          if (node.children) {
-            node.children.forEach(flatten);
-          }
-        };
+        });
 
-        flatten(tree);
-        results.sort((a, b) => a.name.localeCompare(b.name));
-        setSearchResults(results.slice(0, 50)); // limit to 50 results
+        setSearchResults(mapped.slice(0, 50));
+        setSelectedIndex(mapped.length > 0 ? 0 : -1);
       } catch (err) {
         console.error("Search failed:", err);
       }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
+  }, [searchQuery, files]);
 
-    doSearch();
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSearchOpen || searchResults.length === 0) {
+      if (e.key === "Escape") {
+        setIsSearchOpen(false);
+      }
+      return;
+    }
 
-    return () => { cancelled = true; };
-  }, [searchQuery]);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
+        handleSearchSelect(searchResults[selectedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setIsSearchOpen(false);
+    }
+  };
 
-  const handleSearchSelect = async (node: { name: string; path: string; isDirectory: boolean }) => {
+  const handleSearchSelect = async (node: { name: string; path: string; relativePath: string; isDirectory: boolean }) => {
     setIsSearchOpen(false);
     setSearchQuery("");
+    setSelectedIndex(-1);
 
     if (node.isDirectory) {
       // Show in sidebar file tree
@@ -400,20 +473,30 @@ export default function TitleBar({ onOpenSettings }: TitleBarProps) {
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setIsSearchOpen(true); }}
             onFocus={() => searchQuery && setIsSearchOpen(true)}
+            onKeyDown={handleSearchKeyDown}
           />
-          {isSearchOpen && searchResults.length > 0 && (
+          {isSearchOpen && searchQuery.trim() !== "" && (
             <div className="titlebar-search-dropdown">
-              {searchResults.map((node) => (
-                <div
-                  key={node.path}
-                  className="titlebar-search-item"
-                  onClick={() => handleSearchSelect(node)}
-                >
-                  {getFileIcon(node.name, node.isDirectory)}
-                  <span className="titlebar-search-item-name">{node.name}</span>
-                  <span className="titlebar-search-item-path">{node.path}</span>
-                </div>
-              ))}
+              {searchResults.length > 0 ? (
+                searchResults.map((node, index) => {
+                  const isSelected = index === selectedIndex;
+                  return (
+                    <div
+                      key={node.path}
+                      ref={isSelected ? selectedItemRef : null}
+                      className={`titlebar-search-item ${isSelected ? "selected" : ""}`}
+                      onClick={() => handleSearchSelect(node)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                    >
+                      {getFileIcon(node.name, node.isDirectory)}
+                      <span className="titlebar-search-item-name">{node.name}</span>
+                      <span className="titlebar-search-item-path">{node.relativePath}</span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="titlebar-search-empty">No matching files</div>
+              )}
             </div>
           )}
         </div>

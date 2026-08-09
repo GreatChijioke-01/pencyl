@@ -64,3 +64,15 @@ export async function readDirTree(path: string): Promise<FileNode> {
 export async function readGitStatusSnapshot(rootPath: string): Promise<GitStatusSnapshot> {
   return (await invoke("git_status_snapshot", { rootPath })) as GitStatusSnapshot;
 }
+
+export interface SearchFileResult {
+  name: string;
+  path: string;
+  relative_path: string;
+  is_directory: boolean;
+  score?: number;
+}
+
+export async function searchFiles(rootPath: string, query: string, maxResults?: number): Promise<SearchFileResult[]> {
+  return (await invoke("search_files", { rootPath, query, maxResults })) as SearchFileResult[];
+}
