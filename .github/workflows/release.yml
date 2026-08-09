@@ -53,18 +53,22 @@ jobs:
         include:
           # Apple Silicon Macs (M1/M2/M3)
           - platform: 'macos-latest'
+            target: 'aarch64-apple-darwin'
             args: '--target aarch64-apple-darwin'
             artifact_pattern: '*.dmg'
           # Intel Macs
           - platform: 'macos-latest'
+            target: 'x86_64-apple-darwin'
             args: '--target x86_64-apple-darwin'
             artifact_pattern: '*.dmg'
           # Linux
           - platform: 'ubuntu-22.04'
+            target: ''
             args: ''
             artifact_pattern: '*.deb'
           # Windows
           - platform: 'windows-latest'
+            target: ''
             args: ''
             artifact_pattern: '*.msi'
 
@@ -81,7 +85,13 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.target }}
+
+      - name: Install macOS Cross-Compile Targets
+        if: matrix.platform == 'macos-latest'
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup target add x86_64-apple-darwin
 
       - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -138,7 +148,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
-          
+
           cat > latest.json << EOF
           {
             "version": "$VERSION",
@@ -164,7 +174,7 @@ jobs:
             }
           }
           EOF
-          
+
           UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
           UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
           curl -s -X POST \
