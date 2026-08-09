@@ -150,18 +150,6 @@ export default function GitGraph() {
   }, [activeTab, fetchLog, logLoaded, scheduleStatusRefresh]);
 
   useEffect(() => {
-    if (activeTab !== "changes") return;
-
-    const intervalId = window.setInterval(() => {
-      scheduleStatusRefresh(0);
-    }, 2500);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [activeTab, scheduleStatusRefresh]);
-
-  useEffect(() => {
     return () => {
       if (statusTimerRef.current != null) {
         window.clearTimeout(statusTimerRef.current);
