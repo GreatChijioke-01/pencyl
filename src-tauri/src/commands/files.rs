@@ -436,3 +436,70 @@ pub fn run_shell_command(command: String) -> Result<String, String> {
 
     Ok(result)
 }
+
+#[command]
+pub fn create_file(path: String) -> Result<(), String> {
+    use std::fs::{self, File};
+    use std::path::PathBuf;
+    let path = PathBuf::from(path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| format!("Failed to create parent directories: {}", err))?;
+    }
+    File::create(&path).map_err(|err| format!("Failed to create file: {}", err)).map(|_| ())
+}
+
+#[command]
+pub fn create_dir(path: String) -> Result<(), String> {
+    use std::fs;
+    fs::create_dir_all(&path).map_err(|err| format!("Failed to create directory: {}", err))
+}
+
+#[command]
+pub fn delete_path(path: String) -> Result<(), String> {
+    use std::fs;
+    let metadata = fs::metadata(&path).map_err(|err| format!("Failed to read metadata: {}", err))?;
+    if metadata.is_dir() {
+        fs::remove_dir_all(&path).map_err(|err| format!("Failed to remove directory: {}", err))
+    } else {
+        fs::remove_file(&path).map_err(|err| format!("Failed to remove file: {}", err))
+    }
+}
+
+#[command]
+pub fn rename_path(old_path: String, new_path: String) -> Result<(), String> {
+    use std::fs;
+    fs::rename(&old_path, &new_path).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::CrossesDevices {
+            "Cannot rename across different filesystems. Use copy and delete instead.".to_string()
+        } else {
+            format!("Failed to rename: {}", err)
+        }
+    })
+}
+
+#[command]
+pub fn move_path(source_path: String, target_folder_path: String) -> Result<(), String> {
+    use std::fs;
+    use std::path::PathBuf;
+    let source = PathBuf::from(&source_path);
+    let target_folder = PathBuf::from(&target_folder_path);
+
+    if !target_folder.exists() {
+        return Err(format!("Target folder does not exist: {}", target_folder_path));
+    }
+    if !target_folder.is_dir() {
+        return Err(format!("Target path is not a directory: {}", target_folder_path));
+    }
+
+    let file_name = source.file_name()
+        .ok_or_else(|| "Invalid source path: no filename".to_string())?;
+    let destination = target_folder.join(file_name);
+
+    fs::rename(&source, &destination).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::CrossesDevices {
+            "Cannot move across different filesystems. Use copy and delete instead.".to_string()
+        } else {
+            format!("Failed to move: {}", err)
+        }
+    })
+}

@@ -106,16 +106,42 @@ export default function Preferences({ onClose }: PreferencesProps) {
     } catch (error) {
       console.error("Update check failed:", error);
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("fetch") || message.includes("network") || message.includes("connect") || message.includes("ECONNREFUSED")) {
-        setUpdateError("Unable to reach update server. This is expected if no GitHub releases have been published yet.");
-      } else if (message.includes("404") || message.includes("not found")) {
-        setUpdateError("No releases found. Publish a release on GitHub to enable updates.");
+      const errorString = message.toLowerCase();
+      
+      // Handle specific error cases
+      if (errorString.includes("fetch") || errorString.includes("network") || 
+          errorString.includes("connect") || errorString.includes("econnrefused") ||
+          errorString.includes("failed to fetch")) {
+        setUpdateError("Unable to reach the update server. Please check your internet connection.");
+      } else if (errorString.includes("404") || errorString.includes("not found")) {
+        setUpdateError("Update server not configured. The latest.json file is missing from GitHub releases. Please publish a release with the update manifest to enable automatic updates.");
+      } else if (errorString.includes("no signature") || errorString.includes("invalid signature") ||
+                 errorString.includes("public key")) {
+        setUpdateError("Update signature verification failed. The release may not be signed correctly.");
+      } else if (errorString.includes("version") || errorString.includes("parse")) {
+        setUpdateError("Failed to parse update information. The update manifest may be malformed.");
+      } else if (message.includes("Update check failed")) {
+        setUpdateError(message);
       } else {
-        setUpdateError("Update check failed: " + message);
+        setUpdateError(`Update check failed: ${message}`);
       }
       setUpdateStatus('error');
     }
   };
+
+  // Auto-check for updates when the preferences panel opens
+  useEffect(() => {
+    if (activeTab === "general") {
+      // Small delay to avoid checking on every render
+      const timer = setTimeout(() => {
+        // Only auto-check if we haven't checked yet and aren't already checking
+        if (updateStatus === 'idle' && !updateError) {
+          handleCheckForUpdates();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
 
   const [editingAction, setEditingAction] = useState<string | null>(null);
 

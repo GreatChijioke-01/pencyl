@@ -19,7 +19,7 @@ jobs:
           # Intel Macs
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
-          # Linux
+          # Linux - will also generate and upload latest.json
           - platform: 'ubuntu-22.04'
             args: ''
           # Windows
@@ -52,6 +52,7 @@ jobs:
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
+        id: tauri-build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -68,9 +69,60 @@ jobs:
             - **Improved UI:** Removed unnecessary spaces and improve ui
 
             ### Bug Fixes
-            - **File-explorer sidebar rendering issue:** improved the file-explorer sidebar rendering issue when rendering large projects with many directories and files.
+            - **Update function in the general setting** fix the updater function so it runs the update straight from github releases.
 
             ---
             *Lightweight, local-first coding built with Rust and React.*
           releaseDraft: false
           prerelease: false
+
+      - name: Generate and Upload Update Manifest
+        if: matrix.platform == 'ubuntu-22.04' && matrix.args == ''
+        run: |
+          # Wait for the release to be created and get its upload URL
+          sleep 10
+          VERSION=${{ github.ref_name }}
+          
+          # Get the release upload URL from the GitHub API
+          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/GreatChijioke-01/Pencyl/releases/tags/$VERSION" | \
+            jq -r '.upload_url' | \
+            sed 's/{?name,label}//g')
+          
+          echo "Release upload URL: $UPLOAD_URL"
+          
+          # Generate latest.json for Tauri updater
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "Pencyl $VERSION - See release notes for details",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "",
+                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_amd64.deb"
+              },
+              "windows-x86_64": {
+                "signature": "",
+                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64-en-US.msi"
+              },
+              "macos-aarch64": {
+                "signature": "",
+                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_aarch64.dmg"
+              },
+              "macos-x86_64": {
+                "signature": "",
+                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64.dmg"
+              }
+            }
+          }
+          EOF
+          
+          # Upload the latest.json file
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary @latest.json \
+            "$UPLOAD_URL?name=latest.json"
+          
+          echo "Uploaded latest.json to release"
