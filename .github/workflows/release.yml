@@ -103,28 +103,48 @@ jobs:
           args: ${{ matrix.args }}
           releaseUpload: false
 
+      - name: Find Release Artifacts
+        id: find-artifacts
+        run: |
+          # Find the built artifacts in the target/release/bundle directory
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.tar.gz" \) | head -1)
+            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            # On Windows, use PowerShell syntax for find
+            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*.exe" \) | head -1)
+            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            ARTIFACT_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) | head -1)
+            ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
+          fi
+          echo "artifact_path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
+        if: steps.find-artifacts.outputs.artifact_path != ''
+        with:
+          files: ${{ steps.find-artifacts.outputs.artifact_path }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.find-artifacts.outputs.artifact_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.tauri-build.outputs.releasePath }}
-          asset_name: ${{ steps.tauri-build.outputs.releaseName }}
-          asset_content_type: application/octet-stream
 
   generate-latest-json:
-    needs: create-release
+    needs: [create-release, build]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Generate and Upload Update Manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
-          UPLOAD_URL=${{ needs.create-release.outputs.upload_url }}
-          
-          echo "Release upload URL: $UPLOAD_URL"
           
           # Generate latest.json for Tauri updater
           cat > latest.json << EOF
@@ -153,11 +173,15 @@ jobs:
           }
           EOF
           
-          # Upload the latest.json file
+          # Upload the latest.json file using curl
+          UPLOAD_URL="${{ needs.create-release.outputs.upload_url }}"
+          # Remove the {?name,label} suffix
+          UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,label}$//')
           curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             --data-binary @latest.json \
-            "${UPLOAD_URL%\{?name,label\}}?name=latest.json"
+            "${UPLOAD_URL}?name=latest.json"
           
           echo "Uploaded latest.json to release"
+        shell: bash
