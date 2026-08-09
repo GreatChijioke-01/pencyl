@@ -6,7 +6,45 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              `## What's New in Pencyl ${{ github.ref_name }}`,
+              ``,
+              `### Features & Improvements`,
+              `- **Fast search-bar suggestion:** Improve load speed for searching files on the search bar`,
+              `- **Improved UI:** Removed unnecessary spaces and improved UI`,
+              ``,
+              `### Bug Fixes`,
+              `- **Update function in the general setting:** Fix the updater function so it runs the update straight from GitHub releases.`,
+              ``,
+              `---`,
+              `*Lightweight, local-first coding built with Rust and React.*`
+            ].join('\n');
+            const { data: release } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ github.ref_name }}',
+              name: 'Pencyl ${{ github.ref_name }}',
+              body: body,
+              draft: false,
+              prerelease: false
+            });
+            core.setOutput('upload_url', release.upload_url);
+
+  build:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -16,15 +54,19 @@ jobs:
           # Apple Silicon Macs (M1/M2/M3)
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            tauri_target: 'aarch64-apple-darwin'
           # Intel Macs
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
-          # Linux - will also generate and upload latest.json
+            tauri_target: 'x86_64-apple-darwin'
+          # Linux
           - platform: 'ubuntu-22.04'
             args: ''
+            tauri_target: 'x86_64-unknown-linux-gnu'
           # Windows
           - platform: 'windows-latest'
             args: ''
+            tauri_target: 'x86_64-pc-windows-msvc'
 
     runs-on: ${{ matrix.platform }}
 
@@ -58,36 +100,29 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Pencyl ${{ github.ref_name }}'
           args: ${{ matrix.args }}
-          releaseBody: |
-            ## What's New in Pencyl ${{ github.ref_name }}
+          releaseUpload: false
 
-            ### Features & Improvements
-            - **Fast search-bar suggestion :**  improve load speed for the searching files on the search bar
-            - **Improved UI:** Removed unnecessary spaces and improve ui
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.tauri-build.outputs.releasePath }}
+          asset_name: ${{ steps.tauri-build.outputs.releaseName }}
+          asset_content_type: application/octet-stream
 
-            ### Bug Fixes
-            - **Update function in the general setting** fix the updater function so it runs the update straight from github releases.
-
-            ---
-            *Lightweight, local-first coding built with Rust and React.*
-          releaseDraft: false
-          prerelease: false
-
+  generate-latest-json:
+    needs: create-release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
       - name: Generate and Upload Update Manifest
-        if: matrix.platform == 'ubuntu-22.04' && matrix.args == ''
         run: |
-          # Wait for the release to be created and get its upload URL
-          sleep 10
           VERSION=${{ github.ref_name }}
-          
-          # Get the release upload URL from the GitHub API
-          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/GreatChijioke-01/Pencyl/releases/tags/$VERSION" | \
-            jq -r '.upload_url' | \
-            sed 's/{?name,label}//g')
+          UPLOAD_URL=${{ needs.create-release.outputs.upload_url }}
           
           echo "Release upload URL: $UPLOAD_URL"
           
@@ -100,19 +135,19 @@ jobs:
             "platforms": {
               "linux-x86_64": {
                 "signature": "",
-                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_amd64.deb"
+                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_amd64.deb"
               },
               "windows-x86_64": {
                 "signature": "",
-                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64-en-US.msi"
+                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64-en-US.msi"
               },
               "macos-aarch64": {
                 "signature": "",
-                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_aarch64.dmg"
+                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_aarch64.dmg"
               },
               "macos-x86_64": {
                 "signature": "",
-                "url": "https://github.com/GreatChijioke-01/Pencyl/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64.dmg"
+                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64.dmg"
               }
             }
           }
@@ -123,6 +158,6 @@ jobs:
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data-binary @latest.json \
-            "$UPLOAD_URL?name=latest.json"
+            "${UPLOAD_URL%\{?name,label\}}?name=latest.json"
           
           echo "Uploaded latest.json to release"
