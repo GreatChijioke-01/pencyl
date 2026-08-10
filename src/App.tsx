@@ -7,6 +7,7 @@ import Preferences from "./components/preferences/Preferences";
 import { AIChat } from "./components/ai_chat/ai_chat";
 import Footer from "./components/footer/footer";
 import GitGraph from "./components/source_control/GitGraph";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useThemeStore } from "./store/themeStore";
 import { useSystemThemeSync } from "./hooks/useSystemThemeSync";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -167,7 +168,9 @@ export default function App() {
           <GitGraph />
         ) : (
           <>
-            <Editor />
+            <ErrorBoundary>
+              <Editor />
+            </ErrorBoundary>
             {isAiOpen && (
               <div className="ai-chat-container">
                 <AIChat

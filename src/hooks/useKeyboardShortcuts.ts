@@ -8,12 +8,13 @@ interface ShortcutHandlers {
   onToggleSettings: () => void;
 }
 
-function parseShortcut(shortcut: string): { ctrl: boolean; key: string } | null {
+function parseShortcut(shortcut: string): { ctrl: boolean; meta: boolean; key: string } | null {
   const parts = shortcut.split("+");
   const ctrl = parts.includes("Ctrl");
-  const key = parts.filter((p) => p !== "Ctrl").join("+").toLowerCase();
+  const meta = parts.includes("Meta") || parts.includes("Cmd");
+  const key = parts.filter((p) => p !== "Ctrl" && p !== "Meta" && p !== "Cmd").join("+").toLowerCase();
   if (!key) return null;
-  return { ctrl, key };
+  return { ctrl, meta, key };
 }
 
 export function useKeyboardShortcuts({ onSave, onToggleAgent, onToggleTerminal, onToggleSettings }: ShortcutHandlers) {
@@ -49,30 +50,32 @@ export function useKeyboardShortcuts({ onSave, onToggleAgent, onToggleTerminal, 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isModifier = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       const bindings = bindingsRef.current;
 
       for (const [action, shortcut] of Object.entries(bindings)) {
         const parsed = parseShortcut(shortcut);
-        if (parsed && parsed.ctrl === isModifier && parsed.key === key) {
-          e.preventDefault();
-          e.stopPropagation();
-          switch (action) {
-            case "Save":
-              onSaveRef.current?.();
-              break;
-            case "AI Agent":
-              onToggleAgentRef.current?.();
-              break;
-            case "Terminal":
-              onToggleTerminalRef.current?.();
-              break;
-            case "Settings":
-              onToggleSettingsRef.current?.();
-              break;
+        if (parsed) {
+          const modifierMatches = (parsed.ctrl && e.ctrlKey) || (parsed.meta && e.metaKey);
+          if (modifierMatches && parsed.key === key) {
+            e.preventDefault();
+            e.stopPropagation();
+            switch (action) {
+              case "Save":
+                onSaveRef.current?.();
+                break;
+              case "AI Agent":
+                onToggleAgentRef.current?.();
+                break;
+              case "Terminal":
+                onToggleTerminalRef.current?.();
+                break;
+              case "Settings":
+                onToggleSettingsRef.current?.();
+                break;
+            }
+            return;
           }
-          return;
         }
       }
     };

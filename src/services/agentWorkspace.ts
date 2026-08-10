@@ -155,7 +155,12 @@ export async function persistAcceptedChange(path: string, content: string): Prom
   try {
     await readFileContent(path);
   } catch {
-    await createFile(path);
+    // File doesn't exist, that's fine - we'll create it
+    try {
+      await createFile(path);
+    } catch {
+      // If we can't create the file, that's also fine - write_ai_code will create it
+    }
   }
 
   await invoke("write_ai_code", { path, content });

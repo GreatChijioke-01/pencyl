@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getBasename, normalizePath, pathsMatch } from "../utils/pathUtils";
+import { normalizePath } from "../utils/pathUtils";
 
 export interface PendingDiff {
   absolutePath: string;
@@ -35,13 +35,10 @@ export const useDiffStore = create<DiffState>((set, get) => ({
 
   clearPendingDiff: (filePath) =>
     set((state) => {
-      // Always resolve the real pending diff key using the same matcher
-      // logic as the editor UI.
-      const match = get().findDiffForEditorPath(filePath);
-      if (!match) return state;
-
+      // Use the normalized path as the key to ensure we clear the exact diff
+      const key = diffKeyForPath(filePath);
       const updated = { ...state.pendingDiffs };
-      delete updated[match.key];
+      delete updated[key];
       return { pendingDiffs: updated };
     }),
 
@@ -50,22 +47,34 @@ export const useDiffStore = create<DiffState>((set, get) => ({
 
   findDiffForEditorPath: (editorPath) => {
     const entries = Object.entries(get().pendingDiffs);
+    const normalizedEditorPath = diffKeyForPath(editorPath);
 
+    // First, try exact key match (most reliable)
+    if (entries.some(([key]) => key === normalizedEditorPath)) {
+      const [key, diff] = entries.find(([key]) => key === normalizedEditorPath)!;
+      return { key, diff };
+    }
+
+    // Try matching absolutePath or relativePath
     for (const [key, diff] of entries) {
-      // Try multiple path representations (absolute, project-relative, and store key)
+      const normalizedAbsolutePath = diffKeyForPath(diff.absolutePath);
+      const normalizedRelativePath = diffKeyForPath(diff.relativePath);
+      
       if (
-        pathsMatch(editorPath, diff.absolutePath) ||
-        pathsMatch(editorPath, diff.relativePath) ||
-        pathsMatch(editorPath, key)
+        normalizedAbsolutePath === normalizedEditorPath ||
+        normalizedRelativePath === normalizedEditorPath
       ) {
         return { key, diff };
       }
     }
 
-
-    const editorBasename = getBasename(editorPath);
+    // As a last resort, try matching the editor path directly
     for (const [key, diff] of entries) {
-      if (getBasename(diff.absolutePath) === editorBasename || getBasename(key) === editorBasename) {
+      if (
+        diffKeyForPath(editorPath) === key ||
+        diffKeyForPath(editorPath) === diffKeyForPath(diff.absolutePath) ||
+        diffKeyForPath(editorPath) === diffKeyForPath(diff.relativePath)
+      ) {
         return { key, diff };
       }
     }

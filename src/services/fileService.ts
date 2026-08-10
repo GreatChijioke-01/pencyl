@@ -85,5 +85,27 @@ export interface GitBranchInfo {
 }
 
 export async function getCurrentGitBranch(rootPath: string): Promise<GitBranchInfo> {
-  return (await invoke("get_git_branch", { rootPath })) as GitBranchInfo;
+  try {
+    const result = await runShellCommand(`git -C ${rootPath} branch --show-current`);
+    const branch = result.trim() || "main";
+    
+    // Check for uncommitted changes
+    const statusResult = await runShellCommand(`git -C ${rootPath} status --porcelain`);
+    const hasUncommittedChanges = statusResult.trim().length > 0;
+    
+    return {
+      branch,
+      has_uncommitted_changes: hasUncommittedChanges,
+      root_path: rootPath,
+      error: null,
+    };
+  } catch (err) {
+    // If git command fails (not a git repo), return default values
+    return {
+      branch: "main",
+      has_uncommitted_changes: false,
+      root_path: rootPath,
+      error: String(err),
+    };
+  }
 }

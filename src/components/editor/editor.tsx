@@ -143,10 +143,24 @@ export default function Editor() {
         
         // If editor exists, update its model language
         if (monacoEditorRef.current && monacoInstanceRef.current) {
-          const model = monacoEditorRef.current.getModel();
-          if (model) {
-            const monacoLanguage = language.toLowerCase();
-            model.setLanguage(monacoLanguage);
+          const editor = monacoEditorRef.current;
+          const monacoLanguage = language.toLowerCase();
+          
+          // Check if it's a DiffEditor or regular Editor
+          if (editor.getModel && typeof editor.getModel === 'function') {
+            // Regular Monaco Editor
+            const model = editor.getModel();
+            if (model && typeof model.setLanguage === 'function') {
+              model.setLanguage(monacoLanguage);
+            }
+          } else if (editor.original && editor.modified) {
+            // DiffEditor - set language on both original and modified models
+            if (editor.original && typeof editor.original.setLanguage === 'function') {
+              editor.original.setLanguage(monacoLanguage);
+            }
+            if (editor.modified && typeof editor.modified.setLanguage === 'function') {
+              editor.modified.setLanguage(monacoLanguage);
+            }
           }
         }
       }
@@ -250,48 +264,40 @@ export default function Editor() {
 
 
     const handleAccept = async () => {
-
-        if (!suggestedCode || !diffMatch) return;
-
-
+        if (!suggestedCode || !diffMatch || !activeFile) return;
 
         setIsApplying(true);
 
         try {
-
+            // Update the file content in the store
             updateFileContent(activeFile.id, suggestedCode);
 
+            // Write the changes to disk
             await persistAcceptedChange(activeFile.path, suggestedCode);
 
+            // Mark the file as clean (not dirty)
             markFileClean(activeFile.id);
 
-            clearPendingDiff(diffMatch.key);
+            // Clear the pending diff using the absolute path
+            clearPendingDiff(diffMatch.diff.absolutePath);
 
+            // Refresh the file tree to reflect changes
             window.dispatchEvent(new CustomEvent("pencyl:refresh-tree"));
 
         } catch (err) {
-
             console.error("Failed to apply AI change:", err);
-
         } finally {
-
             setIsApplying(false);
-
         }
-
     };
 
 
 
     const handleReject = () => {
-
         if (diffMatch) {
-
-            clearPendingDiff(diffMatch.key);
+            clearPendingDiff(diffMatch.diff.absolutePath);
             window.dispatchEvent(new CustomEvent("pencyl:refresh-tree"));
-
         }
-
     };
 
 
@@ -337,8 +343,8 @@ export default function Editor() {
                     <DiffEditor
                         height="100%"
                         theme={editorTheme}
-                        original={originalCode}
-                        modified={suggestedCode}
+                        original={originalCode ?? ""}
+                        modified={suggestedCode ?? ""}
                         onMount={handleDiffEditorMount}
                         options={{
                             minimap: { enabled: false },
@@ -357,7 +363,7 @@ export default function Editor() {
                         language={editorLanguage}
                         theme={editorTheme}
                         path={activeFile.path}
-                        value={activeFile.content}
+                        value={activeFile.content ?? ""}
                         onChange={(value) => updateFileContent(activeFile.id, value || "")}
                         options={{
                             minimap: { enabled: false },

@@ -185,8 +185,9 @@ export default function GitGraph() {
       });
       // Use -F to read message from file. NO quotes around path (no spaces).
       const result = await runShellCommand(gitCommand(`commit -F ${rootPath}/.pencyl_commit_msg`));
-      // Clean up temp file
-      await runShellCommand(`del ${rootPath}\\.pencyl_commit_msg`);
+      // Clean up temp file - use cross-platform path
+      const commitMsgPath = `${rootPath}/.pencyl_commit_msg`.replace(/\\/g, '/');
+      await runShellCommand(`rm -f "${commitMsgPath}"`);
       if (result.includes("nothing to commit") || result.includes("no changes added")) {
         showMessage("Nothing to commit. Working tree clean.", "info");
       } else if (result.includes("error:") || result.includes("fatal:")) {
