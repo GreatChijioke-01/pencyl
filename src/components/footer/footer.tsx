@@ -3,8 +3,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useAIStore } from "../../store/ai_store";
 import { useFileStore } from "../../store/filestore";
 import { detectLanguageFromPath, detectLineEnding } from "../../store/editorStore";
-import { getCurrentGitBranch } from "../../services/fileService";
-import { GitBranch, AlertTriangle, AlertCircle, Loader2, Code, FileText, Type, HardDrive, Sparkles } from "lucide-react";
+import { AlertTriangle, AlertCircle, Loader2, Code, FileText, Type, HardDrive, Sparkles } from "lucide-react";
 import "./footer.css";
 
 // Status Item Component - Generic wrapper for all status items
@@ -27,23 +26,6 @@ function StatusItem({ label, icon, className = "", onClick, children }: StatusIt
       <span className="status-text">{label}</span>
       {children}
     </div>
-  );
-}
-
-// Git Branch Status Component
-function GitBranchStatus() {
-  const branch = useEditorStore((state) => state.gitStatus.branch);
-  const hasUncommittedChanges = useEditorStore((state) => state.gitStatus.hasUncommittedChanges);
-  
-  return (
-    <StatusItem
-      label={branch}
-      icon={<GitBranch size={12} />}
-    >
-      {hasUncommittedChanges && (
-        <span className="git-dot-indicator" title="Uncommitted changes"></span>
-      )}
-    </StatusItem>
   );
 }
 
@@ -181,36 +163,6 @@ export default function Footer() {
   const activeFileId = useFileStore((state) => state.activeFileId);
   const files = useFileStore((state) => state.files);
   const activeFile = files.find((f) => f.id === activeFileId);
-  const setGitBranch = useEditorStore((state) => state.setGitBranch);
-  
-  // Get project root path
-  const projectRootPath = globalThis.__PENCYL_PROJECT_ROOT_PATH ?? null;
-  
-  // Fetch git branch info when project root changes
-  const fetchGitBranch = useCallback(async () => {
-    if (!projectRootPath) return;
-    
-    try {
-      const branchInfo = await getCurrentGitBranch(projectRootPath);
-      if (branchInfo.branch) {
-        setGitBranch(branchInfo.branch, branchInfo.has_uncommitted_changes);
-      }
-    } catch (error) {
-      console.log("Git branch detection: Not a git repository or error:", error);
-      // Default to "main" if not in a git repo
-      setGitBranch("main", false);
-    }
-  }, [projectRootPath, setGitBranch]);
-  
-  // Initial git branch fetch and periodic refresh
-  useEffect(() => {
-    fetchGitBranch();
-    
-    // Refresh git status every 30 seconds
-    const interval = setInterval(fetchGitBranch, 30000);
-    
-    return () => clearInterval(interval);
-  }, [fetchGitBranch]);
   
   // Update editor store when active file changes
   useEffect(() => {
@@ -240,7 +192,6 @@ export default function Footer() {
   return (
     <div className="footerbar">
       <div className="footer-left">
-        <GitBranchStatus />
         <DiagnosticsCounter />
         <AIStatusDisplay />
       </div>

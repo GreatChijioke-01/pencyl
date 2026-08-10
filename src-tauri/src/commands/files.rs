@@ -5,6 +5,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use tauri::command;
 
 #[command]
@@ -205,6 +208,14 @@ async fn run_git_status(root_path: String) -> Result<GitStatusSnapshot, String> 
 
     let command_root = sanitized_root.clone();
     let status_result = tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "windows")]
+        let output = Command::new("git")
+            .current_dir(&command_root)
+            .args(["status", "--porcelain"])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|err| err.to_string())?;
+        #[cfg(not(target_os = "windows"))]
         let output = Command::new("git")
             .current_dir(&command_root)
             .args(["status", "--porcelain"])
@@ -410,6 +421,7 @@ pub fn run_shell_command(command: String) -> Result<String, String> {
     let output = if cfg!(windows) {
         std::process::Command::new("cmd")
             .args(["/C", &command])
+            .creation_flags(0x08000000)
             .output()
             .map_err(|err| err.to_string())?
     } else {

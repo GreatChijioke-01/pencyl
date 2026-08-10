@@ -63,11 +63,6 @@ interface FormattingInfo {
   tabSize: number;
 }
 
-interface GitStatus {
-  branch: string;
-  hasUncommittedChanges: boolean;
-}
-
 interface AIStatus {
   state: AIStatusState;
   activeModel: string;
@@ -89,9 +84,6 @@ interface EditorState {
   // Diagnostics
   diagnostics: Diagnostic[];
   
-  // Git status
-  gitStatus: GitStatus;
-  
   // AI status
   aiStatus: AIStatus;
   
@@ -110,9 +102,6 @@ interface EditorState {
   setDiagnostics: (diagnostics: Diagnostic[]) => void;
   addDiagnostic: (diagnostic: Diagnostic) => void;
   clearDiagnostics: () => void;
-  
-  setGitBranch: (branch: string, hasUncommittedChanges: boolean) => void;
-  setGitHasUncommittedChanges: (hasUncommittedChanges: boolean) => void;
   
   setAIStatus: (state: AIStatusState, activeModel?: string) => void;
   setAIModel: (model: string) => void;
@@ -139,11 +128,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   diagnostics: [],
-  
-  gitStatus: {
-    branch: "main",
-    hasUncommittedChanges: false,
-  },
   
   aiStatus: {
     state: "idle",
@@ -213,19 +197,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   
   clearDiagnostics: () => {
     set({ diagnostics: [] });
-  },
-  
-  // Git status actions
-  setGitBranch: (branch, hasUncommittedChanges) => {
-    set({
-      gitStatus: { branch, hasUncommittedChanges },
-    });
-  },
-  
-  setGitHasUncommittedChanges: (hasUncommittedChanges) => {
-    set((state) => ({
-      gitStatus: { ...state.gitStatus, hasUncommittedChanges },
-    }));
   },
   
   // AI status actions

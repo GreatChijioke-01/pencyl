@@ -76,36 +76,3 @@ export interface SearchFileResult {
 export async function searchFiles(rootPath: string, query: string, maxResults?: number): Promise<SearchFileResult[]> {
   return (await invoke("search_files", { rootPath, query, maxResults })) as SearchFileResult[];
 }
-
-export interface GitBranchInfo {
-  branch: string;
-  has_uncommitted_changes: boolean;
-  root_path: string;
-  error?: string | null;
-}
-
-export async function getCurrentGitBranch(rootPath: string): Promise<GitBranchInfo> {
-  try {
-    const result = await runShellCommand(`git -C ${rootPath} branch --show-current`);
-    const branch = result.trim() || "main";
-    
-    // Check for uncommitted changes
-    const statusResult = await runShellCommand(`git -C ${rootPath} status --porcelain`);
-    const hasUncommittedChanges = statusResult.trim().length > 0;
-    
-    return {
-      branch,
-      has_uncommitted_changes: hasUncommittedChanges,
-      root_path: rootPath,
-      error: null,
-    };
-  } catch (err) {
-    // If git command fails (not a git repo), return default values
-    return {
-      branch: "main",
-      has_uncommitted_changes: false,
-      root_path: rootPath,
-      error: String(err),
-    };
-  }
-}

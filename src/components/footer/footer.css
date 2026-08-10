@@ -65,22 +65,6 @@
   line-height: 1;
 }
 
-/* Git branch status */
-.git-dot-indicator {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  box-shadow: 0 0 0 1px var(--primary-color);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
 /* Diagnostic icons */
 .diagnostic-icon {
   flex-shrink: 0;

@@ -52,11 +52,14 @@ export default function GitGraph() {
     }
   }, []);
 
+  const isGitRepoRef = useRef<boolean>(true);
+
   const fetchChanges = useCallback(async () => {
     const rootPath = getRootPath();
     if (!rootPath) {
       setChanges([]);
       showMessage("No folder selected. Open a folder to view changes.", "info");
+      isGitRepoRef.current = false;
       return;
     }
 
@@ -72,12 +75,19 @@ export default function GitGraph() {
       const snapshot = await readGitStatusSnapshot(rootPath);
       if (snapshot.error) {
         setChanges([]);
-        showMessage(snapshot.error.includes("not a git repository") ? "Not a git repository." : snapshot.error, "info");
+        if (snapshot.error.includes("not a git repository")) {
+          isGitRepoRef.current = false;
+          showMessage("Not a git repository.", "info");
+        } else {
+          showMessage(snapshot.error, "info");
+        }
       } else {
+        isGitRepoRef.current = true;
         setChanges(snapshot.changes);
       }
     } catch (err) {
       setChanges([]);
+      isGitRepoRef.current = false;
       showMessage("Failed to fetch changes: " + String(err), "error");
     } finally {
       inFlightStatusRef.current = false;
@@ -148,6 +158,18 @@ export default function GitGraph() {
       });
     }
   }, [activeTab, fetchLog, logLoaded, scheduleStatusRefresh]);
+
+  // Add event listener for window focus to refresh git status
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeTab === "changes" && isGitRepoRef.current) {
+        scheduleStatusRefresh(0);
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [activeTab, scheduleStatusRefresh]);
 
   useEffect(() => {
     return () => {

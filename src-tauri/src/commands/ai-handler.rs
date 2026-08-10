@@ -3,6 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 #[allow(dead_code)]
 #[command]
 pub fn write_ai_code(path: String, content: String) -> Result<String, String> {
@@ -25,7 +28,7 @@ pub fn execute_terminal_command(command_string: String, current_dir: String) -> 
     let mut process = Command::new("sh");
 
     #[cfg(target_os = "windows")]
-    process.arg("/C").arg(&command_string);
+    process.arg("/C").arg(&command_string).creation_flags(0x08000000);
     #[cfg(not(target_os = "windows"))]
     process.arg("-c").arg(&command_string);
 
