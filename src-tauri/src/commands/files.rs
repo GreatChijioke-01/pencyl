@@ -418,19 +418,20 @@ pub async fn search_files(root_path: String, query: String, max_results: Option<
 
 #[command]
 pub fn run_shell_command(command: String) -> Result<String, String> {
-    let output = if cfg!(windows) {
-        std::process::Command::new("cmd")
-            .args(["/C", &command])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|err| err.to_string())?
-    } else {
-        std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&command)
-            .output()
-            .map_err(|err| err.to_string())?
+    #[cfg(target_os = "windows")]
+    let output = {
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/C", &command]);
+        cmd.creation_flags(0x08000000);
+        cmd.output().map_err(|err| err.to_string())?
     };
+
+    #[cfg(not(target_os = "windows"))]
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&command)
+        .output()
+        .map_err(|err| err.to_string())?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
