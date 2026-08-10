@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useThemeStore, type ThemePreference, type ResolvedTheme } from "../../store/themeStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useAIStore } from "../../store/ai_store";
-import { Settings, Bot, Palette, Keyboard, X, RefreshCw, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings, Bot, Palette, Keyboard, X, RefreshCw, Download, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import "./Preferences.css";
@@ -69,7 +69,8 @@ export default function Preferences({ onClose }: PreferencesProps) {
     { value: "ocean", label: "Ocean", description: "Deep blue palette with cool accents.", preview: "ocean" },
     { value: "dracula", label: "Dracula", description: "Purple-on-charcoal theme with high contrast.", preview: "dracula" },
     { value: "sage", label: "Sage", description: "Muted forest green palette with calm, natural tones.", preview: "sage" },
-    { value: "caffeine", label: "Caffeine", description: "Warm coffee tones - cream, espresso, and mocha accents.", preview: "caffeine" }
+    { value: "caffeine", label: "Caffeine", description: "Warm coffee tones - cream, espresso, and mocha accents.", preview: "caffeine" },
+    { value: "highContrast", label: "High Contrast", description: "Maximum contrast dark theme with bright yellow accents.", preview: "highContrast" }
   ];
 
   const selectThemePref = (p: ThemePreference) => {
@@ -78,10 +79,13 @@ export default function Preferences({ onClose }: PreferencesProps) {
     const option = themeOptions.find((entry) => entry.value === p);
     if (option?.preview) {
       setResolvedTheme(option.preview);
-    } else {
+    } else if (typeof window !== 'undefined' && window.matchMedia) {
       // system
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       setResolvedTheme(mq.matches ? "dark" : "light");
+    } else {
+      // Fallback if matchMedia is not available
+      setResolvedTheme("light");
     }
   };
 
@@ -91,11 +95,25 @@ export default function Preferences({ onClose }: PreferencesProps) {
     onClose();
   };
 
+  const handleManualDownload = async () => {
+    const fallbackUrl = "https://pencyl.xyz";
+    try {
+      // Attempt to open via Tauri Opener plugin
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(fallbackUrl);
+    } catch {
+      // Fallback for browser or if plugin-opener is unavailable
+      window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const handleCheckForUpdates = async () => {
+    if (!mountedRef.current) return;
     setUpdateStatus('checking');
     setUpdateError(null);
     try {
       const update = await check();
+      if (!mountedRef.current) return;
       if (update !== null) {
         setUpdateStatus('downloading');
         await update.downloadAndInstall();
@@ -104,6 +122,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
         setUpdateStatus('latest');
       }
     } catch (error) {
+      if (!mountedRef.current) return;
       console.error("Update check failed:", error);
       const message = error instanceof Error ? error.message : String(error);
       const errorString = message.toLowerCase();
@@ -114,7 +133,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
           errorString.includes("failed to fetch")) {
         setUpdateError("Unable to reach the update server. Please check your internet connection.");
       } else if (errorString.includes("404") || errorString.includes("not found")) {
-        setUpdateError("Update server not configured. The latest.json file is missing from GitHub releases. Please publish a release with the update manifest to enable automatic updates.");
+        setUpdateError("Update server not configured. The latest.json file is missing from GitHub releases.");
       } else if (errorString.includes("no signature") || errorString.includes("invalid signature") ||
                  errorString.includes("public key")) {
         setUpdateError("Update signature verification failed. The release may not be signed correctly.");
@@ -129,19 +148,28 @@ export default function Preferences({ onClose }: PreferencesProps) {
     }
   };
 
+  const mountedRef = useRef(true);
+
   // Auto-check for updates when the preferences panel opens
+  // 1. Dedicated mount tracking
   useEffect(() => {
-    if (activeTab === "general") {
-      // Small delay to avoid checking on every render
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // 2. Separate auto-check trigger
+  useEffect(() => {
+    if (activeTab === "general" && updateStatus === 'idle' && !updateError) {
       const timer = setTimeout(() => {
-        // Only auto-check if we haven't checked yet and aren't already checking
-        if (updateStatus === 'idle' && !updateError) {
+        if (mountedRef.current) {
           handleCheckForUpdates();
         }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [activeTab]);
+  }, [activeTab, updateStatus, updateError]);
 
   const [editingAction, setEditingAction] = useState<string | null>(null);
 
@@ -149,12 +177,19 @@ export default function Preferences({ onClose }: PreferencesProps) {
     e.preventDefault();
     e.stopPropagation();
 
-    const mod = e.ctrlKey || e.metaKey ? "Ctrl" : "";
+    const mods: string[] = [];
+    if (e.ctrlKey) mods.push("Ctrl");
+    if (e.metaKey) mods.push("Meta");
+    if (e.shiftKey) mods.push("Shift");
+    if (e.altKey) mods.push("Alt");
+
     const key = e.key === "Control" || e.key === "Meta" || e.key === "Shift" || e.key === "Alt" ? "" : e.key;
     
-    if (!mod || !key) return;
+    if (mods.length === 0 || !key) return;
 
-    const shortcut = key === "`" ? `${mod}+\`` : `${mod}+${key.charAt(0).toUpperCase() + key.slice(1)}`;
+    const modStr = mods.join("+");
+    const displayKey = key === "`" ? "`" : key.length === 1 ? key.toUpperCase() : key;
+    const shortcut = `${modStr}+${displayKey}`;
     setHotkeyBinding(action, shortcut);
     setEditingAction(null);
   };
@@ -164,7 +199,6 @@ export default function Preferences({ onClose }: PreferencesProps) {
   };
 
   const editingRef = useRef<HTMLDivElement | null>(null);
-
 
   const getUpdateButtonContent = () => {
     switch (updateStatus) {
@@ -231,18 +265,21 @@ export default function Preferences({ onClose }: PreferencesProps) {
           <Settings size={20} className="preferences-icon" />
           <h2 className="preferences-title">Settings</h2>
         </div>
-        <button className="preferences-close-button" onClick={onClose}>
+        <button className="preferences-close-button" onClick={onClose} aria-label="Close settings">
           <X size={20} />
         </button>
       </div>
 
       <div className="preferences-content">
         {/* Left Navigation Sidebar */}
-        <div className="preferences-navbar">
+        <div className="preferences-navbar" role="tablist">
           <nav className="preferences-nav">
             <button 
               className={`preferences-nav-item${activeTab === "general" ? " active" : ""}`}
               onClick={() => setActiveTab("general")}
+              aria-label="General settings"
+              role="tab"
+              aria-selected={activeTab === "general"}
             >
               <Settings size={18} className="preferences-nav-icon" />
               <span className="preferences-nav-label">General</span>
@@ -251,6 +288,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
             <button 
               className={`preferences-nav-item${activeTab === "ai-config" ? " active" : ""}`}
               onClick={() => setActiveTab("ai-config")}
+              aria-label="AI Config settings"
+              role="tab"
+              aria-selected={activeTab === "ai-config"}
             >
               <Bot size={18} className="preferences-nav-icon" />
               <span className="preferences-nav-label">AI Config</span>
@@ -259,6 +299,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
             <button 
               className={`preferences-nav-item${activeTab === "appearance" ? " active" : ""}`}
               onClick={() => setActiveTab("appearance")}
+              aria-label="Appearance settings"
+              role="tab"
+              aria-selected={activeTab === "appearance"}
             >
               <Palette size={18} className="preferences-nav-icon" />
               <span className="preferences-nav-label">Appearance</span>
@@ -267,6 +310,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
             <button 
               className={`preferences-nav-item${activeTab === "hotkeys" ? " active" : ""}`}
               onClick={() => setActiveTab("hotkeys")}
+              aria-label="Hotkeys settings"
+              role="tab"
+              aria-selected={activeTab === "hotkeys"}
             >
               <Keyboard size={18} className="preferences-nav-icon" />
               <span className="preferences-nav-label">Hotkeys</span>
@@ -275,9 +321,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
         </div>
 
         {/* Right Content Area */}
-        <div className="preferences-main">
+        <div className="preferences-main" role="tabpanel">
           {activeTab === "general" && (
-            <div className="preferences-section">
+            <div className="preferences-section" id="general-panel" role="tabpanel" aria-label="General settings panel">
               {/* Updates Section */}
               <div className="preferences-section-header">
                 <h3>Updates</h3>
@@ -293,12 +339,40 @@ export default function Preferences({ onClose }: PreferencesProps) {
                   className="preferences-button preferences-update-button"
                   onClick={handleCheckForUpdates}
                   disabled={isUpdating}
+                  aria-label={isUpdating ? "Checking for updates" : "Check for updates"}
+                  aria-busy={isUpdating}
                 >
                   {getUpdateButtonContent()}
                 </button>
                 <p className="preferences-setting-description">
                   {getUpdateStatusMessage()}
                 </p>
+
+                {/* Manual Download Fallback Link */}
+                {updateStatus === 'error' && (
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      onClick={handleManualDownload}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px',
+                        color: '#3b82f6',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        font: 'inherit'
+                        }}
+                      aria-label="Download updates manually from pencyl.xyz"
+                    >
+                      <ExternalLink size={14} />
+                      https://www.pencyl.xyz
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* General Settings Section */}
@@ -312,6 +386,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                       type="checkbox" 
                       checked={autoSave} 
                       onChange={(e) => setAutoSave(e.target.checked)}
+                      aria-label="Auto-save files on change"
                     />
                     <span className="preferences-checkbox-label">
                       Auto-save files on change
@@ -325,6 +400,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                       type="checkbox" 
                       checked={enableTerminalGuardrails} 
                       onChange={(e) => setEnableTerminalGuardrails(e.target.checked)}
+                      aria-label="Enable sandboxed terminal guardrails"
                     />
                     <span className="preferences-checkbox-label">
                       Enable sandboxed terminal guardrails
@@ -344,12 +420,15 @@ export default function Preferences({ onClose }: PreferencesProps) {
                 </p>
               </div>
               <div className="preferences-section-content">
-                <div className="theme-options-grid">
+                <div className="theme-options-grid" role="radiogroup" aria-label="Theme selection">
                   {themeOptions.map((option) => (
                     <button
                       key={option.value}
                       className={`theme-option${localPref === option.value ? " active" : ""}`}
                       onClick={() => selectThemePref(option.value)}
+                      role="radio"
+                      aria-checked={localPref === option.value}
+                      aria-label={`Theme: ${option.label}, ${option.description}`}
                     >
                       <span className="theme-option-label">{option.label}</span>
                       <span className="theme-option-description">{option.description}</span>
@@ -376,6 +455,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                     placeholder='e.g. "Always use TypeScript strict types"'
                     value={aiSystemInstructions}
                     onChange={(e) => setAiSystemInstructions(e.target.value)}
+                    aria-label="AI system instructions"
                   />
                 </div>
               </div>
@@ -397,8 +477,12 @@ export default function Preferences({ onClose }: PreferencesProps) {
                       step="0.1"
                       value={aiTemperature}
                       onChange={(e) => setAiTemperature(parseFloat(e.target.value))}
+                      aria-label="AI temperature"
+                      aria-valuemin={0}
+                      aria-valuemax={1}
+                      aria-valuenow={aiTemperature}
                     />
-                    <span className="preferences-slider-value">{aiTemperature.toFixed(1)}</span>
+                    <span className="preferences-slider-value" aria-live="polite">{aiTemperature.toFixed(1)}</span>
                   </div>
                   <div className="preferences-slider-labels">
                     <span>Precise (0.0)</span>
@@ -421,6 +505,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                     placeholder="http://127.0.0.1:11434"
                     value={ollamaBaseUrl}
                     onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                    aria-label="Local inference endpoint URL"
                   />
                 </div>
               </div>
@@ -435,6 +520,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                       type="checkbox" 
                       checked={aiAutoIncludeContext} 
                       onChange={(e) => setAiAutoIncludeContext(e.target.checked)}
+                      aria-label="Auto-include active file context in AI prompt"
                     />
                     <span className="preferences-checkbox-label">
                       Auto-include active file context in prompt
@@ -451,6 +537,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                       type="checkbox" 
                       checked={aiAutoSaveBeforeExec} 
                       onChange={(e) => setAiAutoSaveBeforeExec(e.target.checked)}
+                      aria-label="Auto-save files before AI code execution"
                     />
                     <span className="preferences-checkbox-label">
                       Auto-save files before AI code execution
@@ -495,6 +582,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
                             handleKeydownCapture(e, item.action);
                           }
                         }}
+                        role="button"
+                        aria-label={`${item.action} shortcut: ${currentShortcut}, ${isEditing ? 'currently editing' : 'click to edit'}`}
+                        aria-live="polite"
                       >
                         <span className="preferences-hotkeys-col-action">{item.action}</span>
                         <span className="preferences-hotkeys-col-category">
@@ -502,9 +592,9 @@ export default function Preferences({ onClose }: PreferencesProps) {
                         </span>
                         <span className="preferences-hotkeys-col-shortcut">
                           {isEditing ? (
-                            <span className="preferences-hotkeys-listening">Press Ctrl+<span className="preferences-hotkeys-listening-hint">key</span></span>
+                            <span className="preferences-hotkeys-listening">Press modifier+<span className="preferences-hotkeys-listening-hint">key</span></span>
                           ) : (
-                            <kbd className="preferences-hotkeys-kbd">{currentShortcut}</kbd>
+                            <kbd className="preferences-hotkeys-kbd" aria-label={`Current shortcut: ${currentShortcut}`}>{currentShortcut}</kbd>
                           )}
                         </span>
                       </div>
@@ -516,6 +606,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
                   <button
                     className="preferences-button preferences-button-danger"
                     onClick={resetHotkeyBindings}
+                    aria-label="Reset all keyboard shortcuts to their default values"
                   >
                     Reset Keybindings to Default
                   </button>
@@ -528,7 +619,7 @@ export default function Preferences({ onClose }: PreferencesProps) {
 
       {/* Footer with Save button */}
       <div className="preferences-footer">
-        <button className="preferences-save-button" onClick={handleSave}>
+        <button className="preferences-save-button" onClick={handleSave} aria-label="Save settings and close">
           Save & Close
         </button>
       </div>

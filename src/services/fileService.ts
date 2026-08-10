@@ -76,3 +76,14 @@ export interface SearchFileResult {
 export async function searchFiles(rootPath: string, query: string, maxResults?: number): Promise<SearchFileResult[]> {
   return (await invoke("search_files", { rootPath, query, maxResults })) as SearchFileResult[];
 }
+
+export interface GitBranchInfo {
+  branch: string;
+  has_uncommitted_changes: boolean;
+  root_path: string;
+  error?: string | null;
+}
+
+export async function getCurrentGitBranch(rootPath: string): Promise<GitBranchInfo> {
+  return (await invoke("get_git_branch", { rootPath })) as GitBranchInfo;
+}

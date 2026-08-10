@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type ThemePreference = "light" | "dark" | "system" | "ocean" | "dracula" | "sage" | "caffeine";
-export type ResolvedTheme = "light" | "dark" | "ocean" | "dracula" | "sage" | "caffeine";
+export type ThemePreference = "light" | "dark" | "system" | "ocean" | "dracula" | "sage" | "caffeine" | "highContrast";
+export type ResolvedTheme = "light" | "dark" | "ocean" | "dracula" | "sage" | "caffeine" | "highContrast";
 
 interface ThemeState {
   preference: ThemePreference;
@@ -61,6 +61,14 @@ export const THEME_COLORS: Record<ResolvedTheme, Record<string, string>> = {
     "--text-main": "#e8d8c0",
     "--text-muted": "#a89888",
     "--accent": "#c4a484",
+  },
+  highContrast: {
+    "--bg-primary": "#000000",
+    "--bg-sidebar": "#1a1a1a",
+    "--bg-header": "#2a2a2a",
+    "--text-main": "#ffffff",
+    "--text-muted": "#cccccc",
+    "--accent": "#ffff00",
   },
 };
 

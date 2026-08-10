@@ -1,15 +1,139 @@
 .footerbar {
-  height: 20px;
-  flex: 0 0 20px;
+  height: 24px;
+  flex: 0 0 24px;
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 12px;
   background: var(--surface-color);
   color: var(--text-color);
   border-top: 1px solid var(--border-color);
-  font-size: 12px;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  gap: 4px;
 }
 
-.footer-left { flex: 0 0 auto; color: grey; }
-.footer-center { flex: 1 1 auto; }
-.footer-right { flex: 0 0 auto; }
+.footer-left {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-center {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Status Item styling */
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  height: 20px;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.status-item:hover {
+  background: var(--button-hover-bg);
+}
+
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-text-color);
+  transition: color 0.15s ease;
+}
+
+.status-text {
+  color: var(--text-color);
+  line-height: 1;
+}
+
+/* Git branch status */
+.git-dot-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Diagnostic icons */
+.diagnostic-icon {
+  flex-shrink: 0;
+}
+
+.diagnostic-icon.error {
+  color: #f85149;
+}
+
+.diagnostic-icon.warning {
+  color: #ffa800;
+}
+
+/* AI status styling */
+.ai-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--primary-color);
+}
+
+.ai-icon {
+  color: var(--primary-color);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Cursor/Selection details */
+.cursor-selection {
+  color: var(--text-color);
+}
+
+/* Responsive behavior for smaller screens */
+@media (max-width: 800px) {
+  .footer-left {
+    gap: 4px;
+  }
+  
+  .footer-center {
+    gap: 8px;
+  }
+  
+  .footer-right {
+    gap: 4px;
+  }
+  
+  .status-item {
+    padding: 0 4px;
+    font-size: 10px;
+  }
+  
+  .status-icon {
+    display: none;
+  }
+}

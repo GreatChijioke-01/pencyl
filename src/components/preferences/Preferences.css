@@ -521,6 +521,9 @@
   font-size: 14px;
   font-weight: 600;
   transition: filter 0.2s, transform 0.1s;
+  -webkit-text-stroke: 1px grey;
+  text-stroke: 1px grey;
+  paint-order: stroke fill;
 }
 
 .preferences-save-button:hover {

@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Apple Silicon Macs (M1/M2/M3)
+          # Apple Silicon Macs
           - platform: 'macos-latest'
             target: 'aarch64-apple-darwin'
             args: '--target aarch64-apple-darwin'
@@ -34,6 +34,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -69,18 +71,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Pencyl ${{ github.ref_name }}'
           args: ${{ matrix.args }}
-          releaseBody: |
-            ## What's New in Pencyl ${{ github.ref_name }}
-
-            ### Features & Improvements
-            - **Fast search-bar suggestion:** Improved load speed for searching files on the search bar.
-            - **Improved UI:** Removed unnecessary spaces and improved UI.
-
-            ### Bug Fixes
-            - **Update function in general settings:** Fixed updater function to run directly from GitHub releases.
-
-            ---
-            *Lightweight, local-first coding built with Rust and React.*
           releaseDraft: false
           prerelease: false
 
@@ -91,40 +81,87 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Generate and Upload Update Manifest
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate Signatures and Upload Update Manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
           VERSION=${{ github.ref_name }}
+          RAW_VERSION=${VERSION//v/}
 
-          cat > latest.json << EOF
-          {
-            "version": "$VERSION",
-            "notes": "Pencyl $VERSION - See release notes for details",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "linux-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_amd64.deb"
-              },
-              "windows-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64-en-US.msi"
-              },
-              "macos-aarch64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_aarch64.dmg"
-              },
-              "macos-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${VERSION//v/}_x64.dmg"
-              }
-            }
+          # 1. Extract Tag Annotation Message for "What's New"
+          git fetch --tags
+          RELEASE_NOTES=$(git tag -l --format='%(contents)' $VERSION)
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="Pencyl $VERSION release notes"
+          fi
+
+          # Install Tauri CLI for signing fallback
+          npm install -g @tauri-apps/cli jq
+
+          sign_asset() {
+            ASSET_NAME=$1
+            SIG_URL="https://github.com/${{ github.repository }}/releases/download/$VERSION/$ASSET_NAME.sig"
+            
+            SIG_CONTENT=$(curl -sL "$SIG_URL" || echo "")
+            if [ -n "$SIG_CONTENT" ] && [[ "$SIG_CONTENT" != *"Not Found"* ]]; then
+              echo "$SIG_CONTENT"
+              return
+            fi
+
+            ASSET_URL="https://github.com/${{ github.repository }}/releases/download/$VERSION/$ASSET_NAME"
+            curl -sL -o "$ASSET_NAME" "$ASSET_URL"
+
+            if [ -s "$ASSET_NAME" ]; then
+              SIG=$(npx tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" -p "$TAURI_KEY_PASSWORD" "$ASSET_NAME" 2>/dev/null | grep -v "Message" | tr -d '\r\n' || echo "")
+              echo "$SIG"
+            else
+              echo ""
+            fi
           }
-          EOF
 
-          # Attach latest.json directly to the created tag release
+          LINUX_SIG=$(sign_asset "Pencyl_${RAW_VERSION}_amd64.deb")
+          WIN_SIG=$(sign_asset "Pencyl_${RAW_VERSION}_x64-en-US.msi")
+          MAC_ARM_SIG=$(sign_asset "Pencyl.app.tar.gz")
+          MAC_INTEL_SIG=$(sign_asset "Pencyl_x64.app.tar.gz")
+
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Use jq to write valid JSON safely with multiline release notes
+          jq -n \
+            --arg ver "$VERSION" \
+            --arg notes "$RELEASE_NOTES" \
+            --arg pubdate "$PUB_DATE" \
+            --arg l_sig "$LINUX_SIG" \
+            --arg l_url "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${RAW_VERSION}_amd64.deb" \
+            --arg w_sig "$WIN_SIG" \
+            --arg w_url "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_${RAW_VERSION}_x64-en-US.msi" \
+            --arg ma_sig "$MAC_ARM_SIG" \
+            --arg ma_url "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl.app.tar.gz" \
+            --arg mi_sig "$MAC_INTEL_SIG" \
+            --arg mi_url "https://github.com/${{ github.repository }}/releases/download/$VERSION/Pencyl_x64.app.tar.gz" \
+            '{
+              version: $ver,
+              notes: $notes,
+              pub_date: $pubdate,
+              platforms: {
+                "linux-x86_64": { signature: $l_sig, url: $l_url },
+                "windows-x86_64": { signature: $w_sig, url: $w_url },
+                "darwin-aarch64": { signature: $ma_sig, url: $ma_url },
+                "darwin-x86_64": { signature: $mi_sig, url: $mi_url }
+              }
+            }' > latest.json
+
+          # Upload latest.json to GitHub Release
           RELEASE_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION" | jq -r '.id')
 
@@ -133,5 +170,6 @@ jobs:
             -H "Content-Type: application/json" \
             --upload-file latest.json \
             "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=latest.json"
-          echo "Uploaded latest.json to release"
+          
+          echo "Uploaded signed latest.json to release $VERSION"
         shell: bash

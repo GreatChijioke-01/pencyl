@@ -140,6 +140,24 @@ html, body, #root {
   --focus-shadow: rgba(196, 164, 132, 0.14);
 }
 
+[data-theme="highContrast"] {
+  color-scheme: dark;
+  --background-color: #000000;
+  --surface-color: #1a1a1a;
+  --panel-color: #2a2a2a;
+  --border-color: #404040;
+  --text-color: #ffffff;
+  --muted-text-color: #cccccc;
+  --primary-color: #ffff00;
+  --button-bg: rgba(255, 255, 0, 0.15);
+  --button-hover-bg: rgba(255, 255, 0, 0.25);
+  --shadow-color: rgba(0, 0, 0, 0.6);
+  --selection-bg: rgba(255, 255, 0, 0.2);
+  --selection-border: rgba(255, 255, 0, 0.35);
+  --hover-bg: rgba(255, 255, 0, 0.05);
+  --focus-shadow: rgba(255, 255, 0, 0.25);
+}
+
 /* App container (matches src/App.tsx) */
 .app-container {
   display: flex;
@@ -163,21 +181,8 @@ html, body, #root {
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Footer bar mirrors the titlebar styling */
-.footerbar {
-  height: 44px;
-  flex: 0 0 44px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  background: var(--surface-color);
-  color: var(--text-color);
-  border-top: 1px solid var(--border-color);
-}
-
-.footer-left { flex: 0 0 auto; }
-.footer-center { flex: 1 1 auto; }
-.footer-right { flex: 0 0 auto; }
+/* Footer bar - defined in components/footer/footer.css */
+/* Kept here for backward compatibility but styles moved to footer.css */
 
 /* Main workspace - three columns: sidebar | editor | ai-chat */
 .main-content {
@@ -185,8 +190,8 @@ html, body, #root {
   flex-direction: row;
   flex: 1;
   overflow: hidden;
-  /* leave space for title and footer */
-  height: calc(100vh - 88px);
+  /* leave space for title (44px) and footer (24px) */
+  height: calc(100vh - 68px);
 }
 
 /* Sidebar Container Wrapper (for resizing) */

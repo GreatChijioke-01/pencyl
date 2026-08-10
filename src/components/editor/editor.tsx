@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useRef, useEffect } from "react";
 
 import { Editor as MonacoEditor, DiffEditor, type Monaco } from "@monaco-editor/react";
 
@@ -7,6 +7,8 @@ import { useFileStore } from "../../store/filestore";
 import { useThemeStore } from "../../store/themeStore";
 
 import { useDiffStore } from "../../store/diffStore";
+
+import { useEditorStore, detectLanguageFromPath, detectLineEnding } from "../../store/editorStore";
 
 import { persistAcceptedChange } from "../../services/agentWorkspace";
 
@@ -26,9 +28,20 @@ export default function Editor() {
 
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
 
-    const editorTheme = resolvedTheme === "light" ? "light" : "vs-dark";
+    const editorTheme = resolvedTheme === "light" ? "light" : resolvedTheme === "highContrast" ? "hc-black" : "vs-dark";
 
     const activeFile = files.find((f) => f.id === activeFileId);
+    
+    // Editor store actions
+    const setCursorPosition = useEditorStore((state) => state.setCursorPosition);
+    const setSelection = useEditorStore((state) => state.setSelection);
+    const clearSelection = useEditorStore((state) => state.clearSelection);
+    const setActiveLanguage = useEditorStore((state) => state.setActiveLanguage);
+    const setLineEnding = useEditorStore((state) => state.setLineEnding);
+    
+    // Monaco editor instance ref
+    const monacoEditorRef = useRef<any>(null);
+    const monacoInstanceRef = useRef<Monaco | null>(null);
 
     // Find terminal file to keep it mounted in DOM
     const terminalFile = files.find((f) => f.kind === "terminal");
@@ -55,7 +68,89 @@ export default function Editor() {
         return "typescript";
     }, [activeFile?.path]);
 
+    // Handle Monaco editor mount to capture editor instance
+    const handleEditorMount = useCallback((editor: any, monaco: Monaco) => {
+      monacoEditorRef.current = editor;
+      monacoInstanceRef.current = monaco;
+      
+      // Update language and line ending when editor mounts
+      if (activeFile) {
+        const language = detectLanguageFromPath(activeFile.path);
+        setActiveLanguage(language);
+        const lineEnding = detectLineEnding(activeFile.content);
+        setLineEnding(lineEnding);
+      }
+      
+      // Listen to cursor position changes
+      editor.onDidChangeCursorPosition(() => {
+        const position = editor.getPosition();
+        if (position) {
+          setCursorPosition(position.lineNumber, position.column);
+        }
+      });
+      
+      // Listen to selection changes
+      editor.onDidChangeCursorSelection(() => {
+        const selection = editor.getSelection();
+        if (selection) {
+          const start = selection.getStartPosition();
+          const end = selection.getEndPosition();
+          if (start && end) {
+            // Only update if there's an actual selection
+            if (start.lineNumber !== end.lineNumber || start.column !== end.column) {
+              setSelection(
+                start.lineNumber,
+                start.column,
+                end.lineNumber,
+                end.column
+              );
+            } else {
+              clearSelection();
+            }
+          }
+        } else {
+          clearSelection();
+        }
+      });
+      
+      // Initial cursor position
+      const position = editor.getPosition();
+      if (position) {
+        setCursorPosition(position.lineNumber, position.column);
+      }
+    }, [activeFile, setCursorPosition, setSelection, clearSelection, setActiveLanguage, setLineEnding]);
 
+    // Separate handler for DiffEditor (has different type signature)
+    const handleDiffEditorMount = useCallback((editor: any, monaco: Monaco) => {
+      monacoEditorRef.current = editor;
+      monacoInstanceRef.current = monaco;
+      
+      if (activeFile) {
+        const language = detectLanguageFromPath(activeFile.path);
+        setActiveLanguage(language);
+        const lineEnding = detectLineEnding(activeFile.content);
+        setLineEnding(lineEnding);
+      }
+    }, [activeFile, setActiveLanguage, setLineEnding]);
+
+    // Handle file switch - update language and line ending
+    useEffect(() => {
+      if (activeFile) {
+        const language = detectLanguageFromPath(activeFile.path);
+        setActiveLanguage(language);
+        const lineEnding = detectLineEnding(activeFile.content);
+        setLineEnding(lineEnding);
+        
+        // If editor exists, update its model language
+        if (monacoEditorRef.current && monacoInstanceRef.current) {
+          const model = monacoEditorRef.current.getModel();
+          if (model) {
+            const monacoLanguage = language.toLowerCase();
+            model.setLanguage(monacoLanguage);
+          }
+        }
+      }
+    }, [activeFile, setActiveLanguage, setLineEnding]);
 
     const [isApplying, setIsApplying] = useState(false);
 
@@ -244,6 +339,7 @@ export default function Editor() {
                         theme={editorTheme}
                         original={originalCode}
                         modified={suggestedCode}
+                        onMount={handleDiffEditorMount}
                         options={{
                             minimap: { enabled: false },
                             fontSize: 14,
@@ -257,6 +353,7 @@ export default function Editor() {
                         height="100%"
                         width="100%"
                         beforeMount={handleMonacoBeforeMount}
+                        onMount={handleEditorMount}
                         language={editorLanguage}
                         theme={editorTheme}
                         path={activeFile.path}
