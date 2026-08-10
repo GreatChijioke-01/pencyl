@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect} from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { useAIStore } from "../../store/ai_store";
 import { useFileStore } from "../../store/filestore";
