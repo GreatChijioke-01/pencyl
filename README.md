@@ -120,6 +120,53 @@ Ensure you have the following installed on your machine:
 
   npm run tauri build
 
+  ## Installation & Unsigned Binary Notice
+
+Pencyl is 100% open-source software built and distributed directly from source. Because Pencyl does not currently utilize paid enterprise code-signing certificates, your web browser or operating system may display a security warning regarding an "Unknown Publisher" or "Unidentified Developer."
+
+You can inspect the entire codebase, review our automated [GitHub Actions build workflows](./.github/workflows), or build Pencyl locally from source.
+
+---
+
+### Windows Setup
+
+1. **Browser Download Warning:**
+   * If Microsoft Defender SmartScreen flags the `.exe` download in your browser, click the **three dots (`...`)** or dropdown arrow next to the blocked file.
+   * Select **Keep** > **Keep anyway**.
+
+2. **SmartScreen Execution Warning:**
+   * When launching `Pencyl_x64-setup.exe`, click **More info** on the blue SmartScreen prompt.
+   * Click **Run anyway**.
+
+---
+
+### macOS Setup
+
+1. **First Launch (Gatekeeper):**
+   * Drag `Pencyl.app` into your `/Applications` folder.
+   * **Right-click** (or `Control + Click`) the `Pencyl.app` icon and select **Open**.
+   * In the confirmation window that appears, click **Open**.
+
+2. **Alternative (System Settings):**
+   * If blocked, open **System Settings** > **Privacy & Security**.
+   * Scroll down to the **Security** section and click **Open Anyway** next to the Pencyl block notice.
+
+3. **Terminal Quarantine Removal (If needed):**
+   * If macOS completely blocks execution due to the quarantine flag, run the following command in Terminal:
+     ```bash
+     xattr -d com.apple.quarantine /Applications/Pencyl.app
+     ```
+
+---
+
+### Linux Setup
+
+* **AppImage Execution:**
+  ```bash
+  chmod +x Pencyl_amd64.AppImage
+  ./Pencyl_amd64.AppImage
+
+
 ## License
 
 Distributed under the **Apache License 2.0**. See [`LICENSE`](./LICENSE) for more details.
