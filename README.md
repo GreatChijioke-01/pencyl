@@ -120,11 +120,7 @@ Ensure you have the following installed on your machine:
 
   npm run tauri build
 
-<<<<<<< HEAD
-  ## Installation & Unsigned Binary Notice
-=======
 ## Installation & Unsigned Binary Notice
->>>>>>> 55aa081f25036281542e7f6d23aeb5505e360ef6
 
 Pencyl is 100% open-source software built and distributed directly from source. Because Pencyl does not currently utilize paid enterprise code-signing certificates, your web browser or operating system may display a security warning regarding an "Unknown Publisher" or "Unidentified Developer."
 
@@ -170,10 +166,6 @@ You can inspect the entire codebase, review our automated [GitHub Actions build 
   chmod +x Pencyl_amd64.AppImage
   ./Pencyl_amd64.AppImage
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 55aa081f25036281542e7f6d23aeb5505e360ef6
 ## License
 
 Distributed under the **Apache License 2.0**. See [`LICENSE`](./LICENSE) for more details.
