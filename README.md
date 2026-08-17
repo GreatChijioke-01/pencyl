@@ -135,7 +135,7 @@ You can inspect the entire codebase, review our automated [GitHub Actions build 
 ### Windows Setup
 
 1. **Browser Download Warning:**
-   * If Microsoft Defender SmartScreen flags the `.exe` download in your browser, click the **three dots (`...`)** or dropdown arrow next to the blocked file.
+   * If Microsoft Defender SmartScreen flags the `.exe` download in your browser, click the **three dots (`...`)** or dropdown arrow next to the blocked file in the window.
    * Select **Keep** > **Keep anyway**.
 
 2. **SmartScreen Execution Warning:**
