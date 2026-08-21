@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { invoke } from "@tauri-apps/api/core";
 import tauriConf from "../../src-tauri/tauri.conf.json";
 
 // Default keyboard shortcuts
@@ -47,7 +48,6 @@ interface SettingsState {
 const getAppVersion = async (): Promise<string> => {
   try {
     // Try Tauri app version first
-    const { invoke } = await import("@tauri-apps/api/core");
     const version = await invoke("get_app_version");
     return version as string;
   } catch (error) {
