@@ -8,6 +8,23 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
+  build: {
+    // Tauri bundles assets itself; skip Vite's polyfill overhead for modern webview targets
+    target: "chrome105",
+    chunkSizeWarningLimit: 1500,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "monaco", test: /node_modules[\\/]@?monaco-editor[\\/]/ },
+            { name: "xterm", test: /node_modules[\\/]@xterm[\\/]/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
