@@ -12,14 +12,14 @@ export default defineConfig(() => ({
     // Tauri bundles assets itself; skip Vite's polyfill overhead for modern webview targets
     target: "chrome105",
     chunkSizeWarningLimit: 1500,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        // Rolldown (Vite 8) requires the function form of manualChunks
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("@monaco-editor")) return "monaco";
-          if (id.includes("/xterm")) return "xterm";
-          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
+        codeSplitting: {
+          groups: [
+            { name: "monaco", test: /node_modules[\\/]@?monaco-editor[\\/]/ },
+            { name: "xterm", test: /node_modules[\\/]@xterm[\\/]/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
         },
       },
     },
