@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/logo.png" alt="Pencyl AI Logo" width="120" height="120" />
+  <img src="./docs/logo.png" alt="Pencyl AI Logo" width="120" height="120" />
 </p>
 
 <h1 align="center">Pencyl</h1>
@@ -29,7 +29,7 @@
 ---
 
 <p align="center">
-  <img src="./public/firstpreview.png" alt="Pencyl AI Hero Screenshot" width="100%" />
+  <img src="./docs/firstpreview.png" alt="Pencyl AI Hero Screenshot" width="100%" />
 </p>
 
 ---
@@ -68,17 +68,17 @@ Traditional AI-powered code editors can feel sluggish, heavy, and resource-hungr
 <div align="center">
 
 ### Side-by-Side Diff Inspection
-<img src="./public/sidebyside.png" alt="Monaco Diff Viewer" width="90%" />
+<img src="./docs/sidebyside.png" alt="Monaco Diff Viewer" width="90%" />
 
 <br/><br/>
 
 ### Sandboxed Terminal Command Confirmation
-<img src="./public/terminalrequest.png" alt="Terminal Guardrail Dialog" width="90%" />
+<img src="./docs/terminalrequest.png" alt="Terminal Guardrail Dialog" width="90%" />
 
 <br/><br/>
 
 ### Built-in Theme Customization
-<img src="./public/themeschoice.png" alt="Pencyl AI Themes" width="90%" />
+<img src="./docs/themeschoice.png" alt="Pencyl AI Themes" width="90%" />
 
 </div>
 
