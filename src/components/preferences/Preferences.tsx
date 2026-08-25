@@ -2,12 +2,21 @@ import { useState, useRef, useEffect } from "react";
 import { useThemeStore, type ThemePreference, type ResolvedTheme } from "../../store/themeStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useAIStore } from "../../store/ai_store";
-import { Settings, Bot, Palette, Keyboard, X, RefreshCw, Download, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Settings, Bot, Palette, Keyboard, X, RefreshCw, Download, CheckCircle, AlertCircle, ExternalLink, Info, Globe, Bug } from 'lucide-react';
+
+function GithubIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+      <path d="M9 18c-4.51 2-5-2-7-2" />
+    </svg>
+  );
+}
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import "./Preferences.css";
 
-type PreferencesTab = "general" | "ai-config" | "appearance" | "hotkeys";
+type PreferencesTab = "general" | "ai-config" | "appearance" | "hotkeys" | "about";
 
 interface PreferencesProps {
   onClose: () => void;
@@ -95,16 +104,17 @@ export default function Preferences({ onClose }: PreferencesProps) {
     onClose();
   };
 
-  const handleManualDownload = async () => {
-    const fallbackUrl = "https://pencyl.xyz";
+  const handleOpenExternalUrl = async (url: string) => {
     try {
-      // Attempt to open via Tauri Opener plugin
       const { openUrl } = await import("@tauri-apps/plugin-opener");
-      await openUrl(fallbackUrl);
+      await openUrl(url);
     } catch {
-      // Fallback for browser or if plugin-opener is unavailable
-      window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+      window.open(url, "_blank", "noopener,noreferrer");
     }
+  };
+
+  const handleManualDownload = async () => {
+    await handleOpenExternalUrl("https://pencyl.xyz");
   };
 
   const handleCheckForUpdates = async () => {
@@ -316,6 +326,17 @@ export default function Preferences({ onClose }: PreferencesProps) {
             >
               <Keyboard size={18} className="preferences-nav-icon" />
               <span className="preferences-nav-label">Hotkeys</span>
+            </button>
+
+            <button 
+              className={`preferences-nav-item${activeTab === "about" ? " active" : ""}`}
+              onClick={() => setActiveTab("about")}
+              aria-label="About Pencyl"
+              role="tab"
+              aria-selected={activeTab === "about"}
+            >
+              <Info size={18} className="preferences-nav-icon" />
+              <span className="preferences-nav-label">About</span>
             </button>
           </nav>
         </div>
@@ -610,6 +631,72 @@ export default function Preferences({ onClose }: PreferencesProps) {
                   >
                     Reset Keybindings to Default
                   </button>
+                </div>
+              </div>
+            </div>
+
+            
+          )}
+          {activeTab === "about" && (
+            <div className="preferences-section">
+              <div className="preferences-section-header">
+                <h3>About Pencyl</h3>
+                <p className="preferences-section-subtitle">
+                  A local-first AI workspace for building, editing, and running projects with minimal friction.
+                </p>
+              </div>
+
+              <div className="preferences-section-content">
+                <div className="preferences-about-card">
+                  <div className="preferences-about-brand">
+                    <div className="preferences-about-logo">
+                      <Settings size={20} />
+                    </div>
+                    <div>
+                      <div className="preferences-about-name">Pencyl</div>
+                      <div className="preferences-about-version">Version {currentVersion}</div>
+                    </div>
+                  </div>
+
+                  <div className="preferences-about-links">
+                    <button
+                      type="button"
+                      className="preferences-about-link-item"
+                      onClick={() => handleOpenExternalUrl("https://github.com/GreatChijioke-01/pencyl")}
+                      aria-label="Open GitHub Repository"
+                    >
+                      <div className="preferences-about-link-info">
+                        <GithubIcon size={16} />
+                        <span>GitHub Repository</span>
+                      </div>
+                      <ExternalLink size={14} className="preferences-about-link-icon" />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="preferences-about-link-item"
+                      onClick={() => handleOpenExternalUrl("https://pencyl.xyz")}
+                      aria-label="Open Official Website"
+                    >
+                      <div className="preferences-about-link-info">
+                        <Globe size={16} />
+                        <span>Official Website</span>
+                      </div>
+                      <ExternalLink size={14} className="preferences-about-link-icon" />
+                    </button>
+                  </div>
+
+                  <div className="preferences-about-issue">
+                    <button
+                      type="button"
+                      className="preferences-button preferences-issue-button"
+                      onClick={() => handleOpenExternalUrl("https://github.com/GreatChijioke-01/pencyl/issues")}
+                      aria-label="Report an issue on GitHub"
+                    >
+                      <Bug size={16} />
+                      <span>Report an Issue</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

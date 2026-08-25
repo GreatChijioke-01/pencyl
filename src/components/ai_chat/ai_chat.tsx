@@ -33,6 +33,7 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { useDiffStore } from "../../store/diffStore";
 import { useCommandStore } from "../../store/commandStore";
 import { useFileStore } from "../../store/filestore";
+import { useNotificationStore } from "../../store/notificationStore";
 import { isPlausibleProjectRootPath } from "../../utils/pathUtils";
 import "./ai_chat.css";
 
@@ -211,6 +212,113 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
     setShowSetup(false);
   };
 
+  const wasMinimizedRef = useRef(false);
+
+  // Request desktop notification permission on mount if default
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  // Track window minimization or blur while AI is processing
+  useEffect(() => {
+    if (!isLoading) {
+      wasMinimizedRef.current = false;
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const win = getCurrentWindow();
+        const min = await win.isMinimized();
+        const focused = await win.isFocused();
+        if (min || !focused || document.hidden || !document.hasFocus()) {
+          wasMinimizedRef.current = true;
+        }
+      } catch {
+        if (document.hidden || !document.hasFocus()) {
+          wasMinimizedRef.current = true;
+        }
+      }
+    };
+
+    void checkStatus();
+    const interval = setInterval(checkStatus, 300);
+
+    const handleBlurOrHide = () => {
+      wasMinimizedRef.current = true;
+    };
+
+    window.addEventListener("blur", handleBlurOrHide);
+    document.addEventListener("visibilitychange", handleBlurOrHide);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("blur", handleBlurOrHide);
+      document.removeEventListener("visibilitychange", handleBlurOrHide);
+    };
+  }, [isLoading]);
+
+  const notifyIfMinimized = async (title: string, rawText: string) => {
+    try {
+      let isMin = wasMinimizedRef.current;
+
+      if (!isMin) {
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          const win = getCurrentWindow();
+          const min = await win.isMinimized();
+          const focused = await win.isFocused();
+          if (min || !focused) isMin = true;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!isMin) {
+        if (document.hidden || document.visibilityState === "hidden" || !document.hasFocus()) {
+          isMin = true;
+        }
+      }
+
+      if (isMin) {
+        const cleanText = rawText.replace(/```[\s\S]*?```/g, "[code]").trim();
+        const snippet = cleanText.length > 90 ? cleanText.slice(0, 90) + "..." : cleanText || "Response generated.";
+
+        // 1. Store in notification bell dropdown
+        useNotificationStore.getState().addNotification({
+          title,
+          message: snippet,
+        });
+
+        // 2. Dispatch OS Desktop Notification
+        if (typeof window !== "undefined" && "Notification" in window) {
+          if (Notification.permission === "granted") {
+            try {
+              new Notification(title, { body: snippet });
+            } catch (err) {
+              console.warn("Desktop notification trigger failed:", err);
+            }
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then((perm) => {
+              if (perm === "granted") {
+                try {
+                  new Notification(title, { body: snippet });
+                } catch (err) {
+                  console.warn("Desktop notification trigger failed:", err);
+                }
+              }
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Notification check error:", err);
+    }
+  };
+
   const runAgentLoop = async (userText: string) => {
     const conversation: ChatCompletionMessage[] = [
       { role: "system", content: systemPrompt },
@@ -229,6 +337,8 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
       ollamaModel,
       temperature: aiTemperature,
     });
+
+    await notifyIfMinimized("AI Agent Response", aiResponse);
 
     for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {
       setMessages((prev) => [...prev, { role: "ai", text: aiResponse }]);
@@ -307,10 +417,12 @@ export function AIChat({ projectRootPath, onClose }: AIChatProps) {
     try {
       await runAgentLoop(userText);
     } catch (err) {
+      const errMsg = `Error: ${String(err)}`;
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: `Error: ${String(err)}`, isError: true },
+        { role: "ai", text: errMsg, isError: true },
       ]);
+      await notifyIfMinimized("AI Agent Error", errMsg);
     } finally {
       setIsLoading(false);
     }

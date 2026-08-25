@@ -1,9 +1,10 @@
-import { useEffect} from "react";
+import { useEffect, useState, useRef } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import { useAIStore } from "../../store/ai_store";
 import { useFileStore } from "../../store/filestore";
+import { useNotificationStore } from "../../store/notificationStore";
 import { detectLanguageFromPath, detectLineEnding } from "../../store/editorStore";
-import { AlertTriangle, AlertCircle, Loader2, Code, FileText, Type, HardDrive, Sparkles } from "lucide-react";
+import { AlertTriangle, AlertCircle, Loader2, Code, FileText, Type, HardDrive, Sparkles, Bell, CheckCheck, Trash2, X } from "lucide-react";
 import "./footer.css";
 
 // Status Item Component - Generic wrapper for all status items
@@ -158,6 +159,130 @@ function LanguageModeDisplay() {
   );
 }
 
+// Notification Bell Component with Upwards Dropdown Menu
+function NotificationBellDisplay() {
+  const [isOpen, setIsOpen] = useState(false);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+  const clearNotifications = useNotificationStore((state) => state.clearNotifications);
+  const removeNotification = useNotificationStore((state) => state.removeNotification);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const toggleDropdown = () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  return (
+    <div className="notification-container" ref={dropdownRef}>
+      <button
+        className={`status-item notification-bell-button ${isOpen ? "active" : ""} ${unreadCount > 0 ? "has-unread" : ""}`}
+        onClick={toggleDropdown}
+        title="Notifications"
+        aria-label={`Notifications, ${unreadCount} unread`}
+        aria-expanded={isOpen}
+      >
+        <span className="status-icon">
+          <Bell size={13} />
+          {unreadCount > 0 && (
+            <span className="notification-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
+          )}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="notification-dropdown" role="dialog" aria-label="Notifications panel">
+          <div className="notification-dropdown-header">
+            <div className="notification-dropdown-title">
+              <span>Notifications</span>
+              {unreadCount > 0 && (
+                <span className="notification-header-count">{unreadCount} new</span>
+              )}
+            </div>
+            <div className="notification-dropdown-actions">
+              {unreadCount > 0 && (
+                <button
+                  className="notification-action-btn"
+                  onClick={markAllAsRead}
+                  title="Mark all as read"
+                  aria-label="Mark all as read"
+                >
+                  <CheckCheck size={14} />
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  className="notification-action-btn danger"
+                  onClick={clearNotifications}
+                  title="Clear all notifications"
+                  aria-label="Clear all notifications"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="notification-dropdown-body">
+            {notifications.length === 0 ? (
+              <div className="notification-empty">
+                <Bell size={24} className="notification-empty-icon" />
+                <p>No notifications yet</p>
+              </div>
+            ) : (
+              <div className="notification-list">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`notification-item ${!notif.read ? "unread" : ""}`}
+                    onClick={() => markAsRead(notif.id)}
+                  >
+                    <div className="notification-item-header">
+                      <span className="notification-item-title">
+                        {!notif.read && <span className="notification-unread-dot" />}
+                        {notif.title}
+                      </span>
+                      <span className="notification-item-time">{notif.timestamp}</span>
+                    </div>
+                    <p className="notification-item-message">{notif.message}</p>
+                    <button
+                      className="notification-item-remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeNotification(notif.id);
+                      }}
+                      title="Dismiss notification"
+                      aria-label="Dismiss notification"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Main Footer Component
 export default function Footer() {
   const activeFileId = useFileStore((state) => state.activeFileId);
@@ -204,6 +329,7 @@ export default function Footer() {
       
       <div className="footer-right">
         <LanguageModeDisplay />
+        <NotificationBellDisplay />
       </div>
     </div>
   );
